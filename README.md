@@ -42,7 +42,6 @@ import { useLocation, useRouter, router } from '$exta-router';
 // useLocation() and useRouter() must be used inside React components.
 
 // useLocation is, as the name suggests, a hook that returns the current location.
-// (It automatically triggers a re-render whenever the URL changes, so "hook" is the correct term here.)
 const location = useLocation();
 
 // useRouter is a URL-related router. It provides methods like push, replace, etc.
