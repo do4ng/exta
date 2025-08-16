@@ -1,0 +1,14 @@
+{
+  "name": "create-exta",
+  "version": "0.0.0",
+  "description": "Template downloader for exta app",
+  "main": "./dist/index.js",
+  "bin": "./dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "repository": "https://github.com/do4ng/exta",
+  "dependencies": {
+    "animaux": "^0.1.0"
+  }
+}

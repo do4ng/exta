@@ -1,0 +1,40 @@
+{
+  "name": "exta",
+  "version": "0.0.1-beta.5",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "description": "Static Site Generator",
+  "files": [
+    "dist",
+    "env.d.ts"
+  ],
+  "dependencies": {
+    "esbuild": "^0.25.8",
+    "oxc-parser": "^0.79.1",
+    "vite": "^7.0.6"
+  },
+  "devDependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.js"
+    },
+    "./components": {
+      "types": "./dist/components.d.ts",
+      "require": "./dist/components.js",
+      "import": "./dist/components.mjs"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "require": "./dist/client.js",
+      "import": "./dist/client.mjs"
+    },
+    "./package.json": "./package.json",
+    "./env.d.ts": "./env.d.ts"
+  }
+}

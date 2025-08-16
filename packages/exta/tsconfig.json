@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig/tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react",
+    "rootDir": "./src",
+    "outDir": "./dist/",
+    "paths": {
+      "~/*": ["../exta/src/*"]
+    },
+    "types": ["@types/node", "./env.d.ts", "./vite.d.ts"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}
