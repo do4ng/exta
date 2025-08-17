@@ -30,16 +30,20 @@ function App() {
   const location = useLocation();
 
   const url = new URL(location, window.location.origin).pathname;
-  const page = router.findPage(url);
   const props = router.data.get(prettyURL(url))?.props;
-  const params = matchUrlToRoute(url, { params: page.params, regex: page.regexp });
+  const page = router.findPage(url);
+  const Layout = router.layout._page;
 
   if (!page) {
-    throw new Error('Cannot find page');
+    return React.createElement(
+      Layout,
+      null,
+      React.createElement(router.error._page, { key: location, ...props }),
+    );
   }
 
   const Page = router.modules[page.path]._page;
-  const Layout = router.layout._page;
+  const params = matchUrlToRoute(url, { params: page.params, regex: page.regexp });
 
   return React.createElement(
     Layout,

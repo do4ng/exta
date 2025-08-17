@@ -113,8 +113,10 @@ export function extaBuild(options?: BaseConfig): Plugin {
         join(viteConfig.build.outDir, 'client').replace(/\\/g, '/'),
         bundle[key].facadeModuleId,
       );
+      const pageName = parse(setKey).name;
 
-      if (parse(setKey).name === '_layout') setKey = '[layout]';
+      if (pageName === '_layout') setKey = '[layout]';
+      if (pageName === '_error') setKey = '[error]';
 
       pageMap[setKey] = key;
     }
