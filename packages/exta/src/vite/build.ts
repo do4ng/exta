@@ -183,7 +183,7 @@ export async function createStaticHTML(
             await getClientComponent(page.client, route),
             Layout,
             {
-              ...JSON.parse(readFileSync(staticDataPath).toString()),
+              props: JSON.parse(readFileSync(staticDataPath).toString()),
               params: matchUrlToRoute(route, convertToRegex(pageName)),
             },
             template,
@@ -208,6 +208,7 @@ export async function createStaticHTML(
           Layout,
           {
             props: JSON.parse(readFileSync(staticDataPath).toString()),
+            params: {},
           },
           template,
         ),
