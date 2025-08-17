@@ -40,6 +40,8 @@ declare module '$exta-router' {
 
     layout: any;
 
+    error: any;
+
     modules: Record<string, any>;
 
     data: Map<string, any>;
@@ -51,6 +53,8 @@ declare module '$exta-router' {
     preloadAllPages(): void;
 
     loadLayout(): Promise<any>;
+
+    loadError(): Promise<any>;
 
     findPage(url: string): PageManifest;
 

@@ -3,6 +3,8 @@ import { PAGES_MANIFEST as manifest, PageManifest } from '$exta-manifest';
 import pages from '$exta-pages';
 import React from 'react';
 import { isSamePathClient, removeExtension } from '~/utils/clientPath';
+import { DefaultLayout } from './components/_layout.';
+import { DefaultError } from './components/_error';
 
 declare global {
   interface Window {
@@ -96,7 +98,11 @@ export function useRouter() {
 export class Router {
   routes: PageManifest[];
 
+  // layout component
   layout: any;
+
+  // error page
+  error: any;
 
   modules: Record<string, any> = {};
 
@@ -139,9 +145,25 @@ export class Router {
   async loadLayout() {
     if (this.layout) return this.layout;
 
-    this.layout = await pages['[layout]']();
+    if (!pages['[layout]']) {
+      this.layout = { _page: DefaultLayout };
+    } else {
+      this.layout = await pages['[layout]']();
+    }
 
     return this.layout;
+  }
+
+  async loadError() {
+    if (this.error) return this.error;
+
+    if (!pages['[error]']) {
+      this.error = { _page: DefaultError };
+    } else {
+      this.error = await pages['[error]']();
+    }
+
+    return this.error;
   }
 
   findPage(url: string) {
@@ -157,18 +179,18 @@ export class Router {
     const url = new URL(href, window.location.origin).pathname;
     const page = this.findPage(url);
 
-    if (!page) {
-      throw new Error(`Cannot find page (path: ${url}, ${Object.keys(this.routes)})`);
-    }
+    await this.loadLayout();
+    await this.loadError();
+
+    if (!page) return;
 
     const pageModule = await pages[page.path]();
-    await this.loadLayout();
-    this.modules[page.path] = pageModule;
     const _url = prettyURL(url);
-
     const data = this.data.has(_url)
       ? this.data.get(_url)
       : this.data.set(_url, await loadPageData(url)).get(_url);
+
+    this.modules[page.path] = pageModule;
 
     return { module: this.modules, data };
   }

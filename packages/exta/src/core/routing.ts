@@ -60,10 +60,13 @@ export async function compilePages(
   const output = {};
 
   for await (const page of pages) {
+    const pageName = parse(page).name;
     let name = prettyURL(relative(baseDir, page).replace(/\\/g, '/'));
 
-    if (parse(page).name === '_layout') {
+    if (pageName === '_layout') {
       name = '[layout]';
+    } else if (pageName === '_error') {
+      name = '[error]';
     }
 
     output[name] = (await compilePage(page, compileOptions)).outfiles;

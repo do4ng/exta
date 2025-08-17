@@ -20,8 +20,6 @@ const clientModuleId = '$exta-client';
 const resolvedClientModuleId = '\0' + clientModuleId;
 const routerModuleId = '$exta-router';
 const resolvedRouterModuleId = '\0' + routerModuleId;
-const pagesModuleId = '$exta-pages';
-const resolvedPagesModuleId = '\0' + pagesModuleId;
 
 export function exta(options?: BaseConfig): Plugin[] {
   const isDev = process.env.NODE_ENV === 'development';
