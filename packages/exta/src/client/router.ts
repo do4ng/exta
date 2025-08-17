@@ -6,6 +6,8 @@ import { isSamePathClient, removeExtension } from '~/utils/clientPath';
 import { DefaultLayout } from './components/_layout.';
 import { DefaultError } from './components/_error';
 
+const isServerSide = typeof window === 'undefined';
+
 declare global {
   interface Window {
     __EXTA_PAGEMAP__: Record<string, string>;
@@ -34,14 +36,29 @@ export async function loadPageData(page: string): Promise<any> {
     try {
       const res = await fetch(`/data/${page.replace(/\//g, '_')}.json`);
       return { props: await res.json() };
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (__e) {
-      return { props: {} };
+      console.error(
+        `Cannot find page (fetching ${`/data/${page.replace(/\//g, '_')}.json`}) - ${__e.message}`,
+      );
+      return { props: {}, status: 404 };
     }
   }
 }
 
 function createHistoryStore() {
+  if (isServerSide) {
+    return {
+      subscribe() {
+        return () => {};
+      },
+      getSnapshot() {
+        return global.__EXTA_SSR_DATA__.pathname;
+      },
+      push() {},
+      replace() {},
+    };
+  }
+
   const listeners = new Set<() => void>();
 
   const notify = () => {
@@ -83,6 +100,8 @@ function createHistoryStore() {
 const historyStore = createHistoryStore();
 
 export function useLocation() {
+  if (isServerSide) return global.__EXTA_SSR_DATA__.pathname;
+
   return React.useSyncExternalStore(historyStore.subscribe, historyStore.getSnapshot);
 }
 
@@ -192,14 +211,20 @@ export class Router {
 
     this.modules[page.path] = pageModule;
 
+    if (data?.status === 404) {
+      return;
+    }
+
     return { module: this.modules, data };
   }
 }
 
 export const router = new Router(manifest);
 
-window._exta_router = router as any as import('$exta-router').Router;
-window._exta_useRouter = useRouter as any as typeof import('$exta-router').useRouter;
+if (!isServerSide) {
+  window._exta_router = router as any as import('$exta-router').Router;
+  window._exta_useRouter = useRouter as any as typeof import('$exta-router').useRouter;
+}
 
 declare global {
   interface Window {

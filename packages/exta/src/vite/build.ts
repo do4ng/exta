@@ -1,8 +1,13 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, parse, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { Plugin, ResolvedConfig } from 'vite';
+import { createServer, Plugin, ResolvedConfig, ViteDevServer } from 'vite';
+import { renderToString } from 'react-dom/server';
+
+import { DefaultError } from '~/client/components/_error';
+import { DefaultLayout } from '~/client/components/_layout.';
 import {
   PAGE_STATIC_DATA_FUNCTION,
   PAGE_STATIC_PARAMS_FUNCTION,
@@ -10,11 +15,17 @@ import {
 
 import { BaseConfig } from '~/config/types';
 import { initialize } from '~/core';
-import { compilePages } from '~/core/routing';
+import { compilePages, convertToRegex } from '~/core/routing';
 import { scanDirectory } from '~/utils/fs';
 import { changeExtension } from '~/utils/path';
+import React from 'react';
+import { getIndexHtml } from '~/core/index.html';
+import { matchUrlToRoute } from '~/utils/params';
 
-function replaceParamsInRoute(route: string, params: { [key: string]: string }): string {
+export function replaceParamsInRoute(
+  route: string,
+  params: { [key: string]: string },
+): string {
   let result = route;
 
   const regex = /\[([^\]]+)\]/g;
@@ -34,6 +45,21 @@ function replaceParamsInRoute(route: string, params: { [key: string]: string }):
 
   return result;
 }
+
+export const serverRendering = (
+  children: any,
+  Layout: any,
+  props: object,
+  template: string,
+) => {
+  const string = renderToString(
+    React.createElement(Layout, null, React.createElement(children, props)),
+  );
+
+  return template
+    .replace('%body%', `<div id="_app">${string}</div>`)
+    .replace('%head%', '<script src="/.exta/client.js" type="module"></script>');
+};
 
 async function createStaticProps(
   pages: Awaited<ReturnType<typeof compilePages>>,
@@ -91,6 +117,110 @@ async function createStaticProps(
   }
 }
 
+export async function createStaticHTML(
+  pages: Awaited<ReturnType<typeof compilePages>>,
+  outdir: string,
+  vite: ViteDevServer,
+  template: string,
+) {
+  const getLayout = async (): Promise<any> => {
+    if (!pages['[layout]']) return DefaultLayout;
+
+    global.__EXTA_SSR_DATA__ = {
+      pathname: null,
+    };
+
+    return (await vite.ssrLoadModule(pages['[layout]'].client))._page;
+  };
+
+  const getError = async (): Promise<any> => {
+    if (!pages['[error]']) return DefaultError;
+
+    global.__EXTA_SSR_DATA__ = {
+      pathname: null,
+    };
+
+    return (await vite.ssrLoadModule(pages['[error]'].client))._page;
+  };
+
+  const getClientComponent = async (path: string, url: string): Promise<any> => {
+    global.__EXTA_SSR_DATA__ = {
+      pathname: url,
+    };
+
+    return (await vite.ssrLoadModule(path))._page;
+  };
+
+  const Layout = await getLayout();
+  const ErrorComponent = await getError();
+
+  for (const pageName in pages) {
+    const page = pages[pageName];
+    const moduleUrl = pathToFileURL(page.server).href;
+    const data = await import(moduleUrl);
+
+    if (data[PAGE_STATIC_PARAMS_FUNCTION]) {
+      const paramsModule = await data[PAGE_STATIC_PARAMS_FUNCTION]();
+
+      if (!Array.isArray(paramsModule)) {
+        throw new Error(
+          `An error occurred while generating HTML file. - Static params function must return array. (in ${pageName})`,
+        );
+      }
+
+      for (const params of paramsModule) {
+        const route = replaceParamsInRoute(pageName, params);
+        const outStaticPage = changeExtension(join(outdir, route), '.html');
+        const staticDataPath = changeExtension(
+          join(outdir, 'data', route.replace(/\//g, '_')),
+          '.json',
+        );
+
+        mkdirSync(dirname(outStaticPage), { recursive: true });
+        writeFileSync(
+          outStaticPage,
+          serverRendering(
+            await getClientComponent(page.client, route),
+            Layout,
+            {
+              ...JSON.parse(readFileSync(staticDataPath).toString()),
+              params: matchUrlToRoute(route, convertToRegex(pageName)),
+            },
+            template,
+          ),
+        );
+      }
+    } else {
+      if (pageName.startsWith('[') && pageName.endsWith(']')) continue;
+
+      const route = replaceParamsInRoute(pageName, {});
+      const outStaticPage = join(outdir, route) + '/index.html';
+      const staticDataPath = changeExtension(
+        join(outdir, 'data', route.replace(/\//g, '_')),
+        '.json',
+      );
+      mkdirSync(dirname(outStaticPage), { recursive: true });
+
+      writeFileSync(
+        outStaticPage,
+        serverRendering(
+          await getClientComponent(page.client, route),
+          Layout,
+          {
+            props: JSON.parse(readFileSync(staticDataPath).toString()),
+          },
+          template,
+        ),
+      );
+    }
+  }
+
+  writeFileSync(
+    join(outdir, '404.html'),
+    serverRendering(ErrorComponent, Layout, {}, template),
+  );
+}
+
 export function extaBuild(options?: BaseConfig): Plugin {
   let viteConfig: ResolvedConfig;
 
@@ -99,6 +229,7 @@ export function extaBuild(options?: BaseConfig): Plugin {
   const pageMap = {};
 
   let pages;
+  let vite: ViteDevServer;
 
   function generatePageMap(
     bundle: import('rollup').OutputBundle,
@@ -148,9 +279,14 @@ export function extaBuild(options?: BaseConfig): Plugin {
       inputs['index.html'] = 'index.html';
 
       config.build.rollupOptions.input = inputs;
+
+      vite = await createServer({
+        server: { middlewareMode: true, hmr: false },
+        ...config,
+      });
     },
 
-    configResolved(config) {
+    async configResolved(config) {
       viteConfig = config;
     },
 
@@ -169,14 +305,23 @@ export function extaBuild(options?: BaseConfig): Plugin {
         join(viteConfig.build.outDir, 'map.json'),
         JSON.stringify(generatePageMap(bundle)),
       );
+    },
 
+    async writeBundle() {
       const { outDir } = viteConfig.build;
+      const indexHTML = readFileSync(join(outDir, 'index.html')).toString();
+
+      await createStaticHTML(pages, viteConfig.build.outDir, vite, indexHTML);
+
+      await vite.close();
+
       rmSync(join(outDir, 'map.json'), { recursive: true, force: true });
       rmSync(join(outDir, 'manifest.js'), { recursive: true, force: true });
       rmSync(join(outDir, 'client.js'), { recursive: true, force: true });
       rmSync(join(outDir, 'server'), { recursive: true, force: true });
       rmSync(join(outDir, 'client'), { recursive: true, force: true });
     },
+    async buildEnd() {},
 
     transformIndexHtml(html) {
       return {

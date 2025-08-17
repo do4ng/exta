@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { join, relative } from 'node:path';
 
-import { Plugin } from 'vite';
+import { ConfigEnv, Plugin } from 'vite';
 
 import { BaseConfig } from '~/config/types';
 import { initialize } from '~/core';
@@ -30,6 +30,7 @@ export function exta(options?: BaseConfig): Plugin[] {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const _server_props = new Map<string, any>();
   let logger: import('vite').Logger;
+  let env: ConfigEnv;
 
   if (existsSync(dist)) rmSync(dist, { recursive: true, force: true });
 
@@ -77,7 +78,9 @@ export function exta(options?: BaseConfig): Plugin[] {
     {
       name: 'exta',
 
-      config(config, env) {
+      config(config, _env) {
+        env = _env;
+
         config.server ??= {};
         config.server.watch ??= {};
         config.server.watch.ignored = [
@@ -172,14 +175,16 @@ export function exta(options?: BaseConfig): Plugin[] {
 
               let success = 0;
 
-              for (let param in params) {
-                param = param.trim();
-                if (!availableParams[param].includes(params[param])) {
-                  success += 1;
+              for (const allowedParams of availableParams) {
+                for (const allowedParamName in allowedParams) {
+                  success += Number(
+                    allowedParams[allowedParamName].trim() ===
+                      params[allowedParamName].trim(),
+                  );
                 }
               }
 
-              if (success !== 0) {
+              if (success !== Object.keys(params).length) {
                 return res.end(
                   JSON.stringify({
                     props: {},
@@ -198,6 +203,12 @@ export function exta(options?: BaseConfig): Plugin[] {
             res.end(JSON.stringify({ props: data, status: 200 }));
           });
         }
+      },
+
+      transformIndexHtml(html) {
+        if (env.command === 'build') return;
+
+        return html.replace('%head%', '').replace('%body%', '<div id="_app"></div>');
       },
 
       resolveId(id) {

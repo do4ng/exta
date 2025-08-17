@@ -21,24 +21,31 @@ function prettyURL(path: string): string {
 router.preloadAllPages();
 
 router.goto(window.location.href).then(() => {
-  const root = ReactDOM.createRoot(document.getElementById('_app'));
-
-  root.render(React.createElement(App, null));
+  let root;
+  if (import.meta.env.PROD) {
+    root = ReactDOM.hydrateRoot(
+      document.getElementById('_app'),
+      React.createElement(App, null),
+    );
+  } else {
+    root = ReactDOM.createRoot(document.getElementById('_app'));
+    root.render(React.createElement(App, null));
+  }
 });
 
 function App() {
   const location = useLocation();
 
   const url = new URL(location, window.location.origin).pathname;
-  const props = router.data.get(prettyURL(url))?.props;
+  const props = router.data.get(prettyURL(url));
   const page = router.findPage(url);
   const Layout = router.layout._page;
 
-  if (!page) {
+  if (!page || props?.status === 404) {
     return React.createElement(
       Layout,
       null,
-      React.createElement(router.error._page, { key: location, ...props }),
+      React.createElement(router.error._page, { key: location, ...(props || {}).props }),
     );
   }
 

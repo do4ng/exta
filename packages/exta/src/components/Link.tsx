@@ -1,6 +1,10 @@
 import React from 'react';
 
 export function Link({ href, children }: { href: string; children: React.ReactNode }) {
+  if (typeof window === 'undefined') {
+    return <a href={href}>{children}</a>;
+  }
+
   const useRouter = window._exta_useRouter;
   const extaRouter = window._exta_router;
 
