@@ -1,5 +1,6 @@
 import { Plugin } from 'esbuild';
 import { builtinModules } from 'node:module';
+import { join, relative } from 'node:path';
 
 const BUILTIN_MODULES = builtinModules.concat(builtinModules.map((m) => `node:${m}`));
 
@@ -32,20 +33,21 @@ export function onlyReact(
             `\\.(${extensions.map((ext) => ext.replace('.', '')).join('|')})$`,
           ),
         },
+
         (args) => {
+          if (args.path.startsWith('.')) {
+            return {
+              path: join(args.resolveDir, args.path),
+              external: true,
+            };
+          }
+
           return {
             path: args.path,
-            namespace: 'exta-assets',
+            external: true,
           };
         },
       );
-
-      build.onLoad({ filter: /.*/, namespace: 'exta-assets' }, (args) => {
-        return {
-          contents: `import ${JSON.stringify(args.path)};`,
-          loader: 'js',
-        };
-      });
     },
   };
 }
