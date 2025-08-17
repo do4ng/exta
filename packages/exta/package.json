@@ -4,6 +4,7 @@
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
+  "repository": "https://github.com/do4ng/exta",
   "description": "Static Site Generator",
   "files": [
     "dist",
