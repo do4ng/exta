@@ -54,6 +54,7 @@ export function prettyURL(path: string): string {
 
 export async function compilePages(
   compileOptions?: CompileOptions,
+  ignoreAssets: boolean = false,
 ): Promise<Record<string, { server: string; client: string }>> {
   const baseDir = join(process.cwd(), 'pages');
   const pages = scanDirectory(baseDir);
@@ -69,7 +70,7 @@ export async function compilePages(
       name = '[error]';
     }
 
-    output[name] = (await compilePage(page, compileOptions)).outfiles;
+    output[name] = (await compilePage(page, compileOptions, ignoreAssets)).outfiles;
   }
 
   return output;

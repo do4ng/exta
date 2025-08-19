@@ -10,7 +10,11 @@ import { generateOriginalServerFile, getExports } from './utils';
 import { onlyReact, sideEffectPlugin } from './plugin';
 import { changeExtension } from '~/utils/path';
 
-export async function compilePage(filename: string, options: CompileOptions = {}) {
+export async function compilePage(
+  filename: string,
+  options: CompileOptions = {},
+  ignoreAssets: boolean,
+) {
   const cwd = process.cwd();
   const source = await readFile(filename, 'utf-8');
   const exports = await getExports(source, filename);
@@ -30,7 +34,7 @@ export async function compilePage(filename: string, options: CompileOptions = {}
 
   const outfiles = {
     client: join(outdirectory, 'client', changeExtension(relativeFilename, '.js')),
-    server: join(outdirectory, 'server', changeExtension(relativeFilename, '.js')),
+    server: join(outdirectory, 'server', changeExtension(relativeFilename, '.mjs')),
   };
 
   // compile client file to javascript
@@ -46,7 +50,7 @@ export async function compilePage(filename: string, options: CompileOptions = {}
     jsx: 'automatic',
     ignoreAnnotations: true,
 
-    plugins: [sideEffectPlugin(), onlyReact()],
+    plugins: [sideEffectPlugin(), onlyReact(undefined, ignoreAssets)],
   });
 
   // compile server file to javascript
@@ -60,7 +64,7 @@ export async function compilePage(filename: string, options: CompileOptions = {}
     bundle: true,
     ignoreAnnotations: true,
 
-    plugins: [sideEffectPlugin(), onlyReact()],
+    plugins: [sideEffectPlugin(), onlyReact(undefined, true)],
   });
 
   return { outfiles };

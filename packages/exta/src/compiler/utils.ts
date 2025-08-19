@@ -12,7 +12,7 @@ export async function getExports(code: string, filename: string = '@virtual.ts')
     sourceType: 'module',
   });
 
-  if (result.errors) {
+  if (result.errors && process.argv.includes('--show-parser-error')) {
     for (const parserError of result.errors) {
       error(
         `[exta/compiler:oxc-parser] ${parserError.message}\n - ${JSON.stringify(parserError).red}`,

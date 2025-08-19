@@ -5,6 +5,7 @@ import React from 'react';
 import { isSamePathClient, removeExtension } from '~/utils/clientPath';
 import { DefaultLayout } from './components/_layout.';
 import { DefaultError } from './components/_error';
+import { matchUrlToRoute } from '~/utils/params';
 
 const isServerSide = typeof window === 'undefined';
 
@@ -100,9 +101,21 @@ function createHistoryStore() {
 const historyStore = createHistoryStore();
 
 export function useLocation() {
-  if (isServerSide) return global.__EXTA_SSR_DATA__.pathname;
+  if (isServerSide) return global.__EXTA_SSR_DATA__.pathname || '/.exta/ssr:unknown';
 
   return React.useSyncExternalStore(historyStore.subscribe, historyStore.getSnapshot);
+}
+
+function useURL() {
+  return new URL(useLocation(), 'http://localhost/');
+}
+
+export function usePathname() {
+  return useURL().pathname;
+}
+
+export function useSearchQuery() {
+  return useURL().searchParams;
 }
 
 export function useRouter() {
@@ -112,6 +125,23 @@ export function useRouter() {
     push: historyStore.push,
     replace: historyStore.replace,
   };
+}
+
+export function useParams() {
+  if (isServerSide) {
+    return global.__EXTA_SSR_DATA__.params || {};
+  }
+
+  const location = usePathname();
+  const page = window._exta_router.findPage(location);
+
+  if (!page) {
+    throw new Error(
+      `[exta-router] Cannot generate params: Route match for "${location}" is missing required data.`,
+    );
+  }
+
+  return matchUrlToRoute(location, { params: page.params, regex: page.regexp });
 }
 
 export class Router {
@@ -149,8 +179,7 @@ export class Router {
 
   preload(page: PageManifest) {
     const preload = document.createElement('link');
-    preload.rel = 'modulepreload';
-    preload.as = 'script';
+    preload.rel = 'prefetch';
     preload.href = this.getHref(page);
     document.head.appendChild(preload);
   }

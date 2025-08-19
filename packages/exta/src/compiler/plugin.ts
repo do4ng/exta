@@ -1,6 +1,6 @@
 import { Plugin } from 'esbuild';
 import { builtinModules } from 'node:module';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 
 const BUILTIN_MODULES = builtinModules.concat(builtinModules.map((m) => `node:${m}`));
 
@@ -23,6 +23,7 @@ export function sideEffectPlugin(): Plugin {
 
 export function onlyReact(
   extensions: string[] = ['.css', '.scss', '.sass', '.less'],
+  isServerSide: boolean = false,
 ): Plugin {
   return {
     name: 'exta/esbuild-react-plugin',
@@ -35,6 +36,12 @@ export function onlyReact(
         },
 
         (args) => {
+          if (isServerSide) {
+            return {
+              path: args.path,
+              namespace: 'exta:ignore',
+            };
+          }
           if (args.path.startsWith('.')) {
             return {
               path: join(args.resolveDir, args.path),
@@ -48,6 +55,12 @@ export function onlyReact(
           };
         },
       );
+      build.onLoad({ filter: /.*/, namespace: 'exta:ignore' }, () => {
+        return {
+          contents: '',
+          loader: 'js',
+        };
+      });
     },
   };
 }

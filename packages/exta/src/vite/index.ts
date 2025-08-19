@@ -13,6 +13,7 @@ import { scanDirectory } from '~/utils/fs';
 
 import type { PageManifest } from '$exta-manifest';
 import { extaBuild } from './build';
+import { isDeepStrictEqual } from 'node:util';
 
 const manifestModuleId = '$exta-manifest';
 const resolvedManifestModuleId = '\0' + manifestModuleId;
@@ -173,18 +174,15 @@ export function exta(options?: BaseConfig): Plugin[] {
                 params,
               });
 
-              let success = 0;
+              let success = false;
 
               for (const allowedParams of availableParams) {
-                for (const allowedParamName in allowedParams) {
-                  success += Number(
-                    allowedParams[allowedParamName].trim() ===
-                      params[allowedParamName].trim(),
-                  );
+                if (isDeepStrictEqual(allowedParams, params)) {
+                  success = true;
                 }
               }
 
-              if (success !== Object.keys(params).length) {
+              if (!success) {
                 return res.end(
                   JSON.stringify({
                     props: {},

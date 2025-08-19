@@ -35,6 +35,13 @@ declare module '$exta-router' {
     replace: (path: any) => void;
   };
 
+  export function useParams(): {
+    [key: string]: string;
+  };
+
+  export function usePathname(): string;
+  export function useSearchQuery(): URLSearchParams;
+
   export interface Router {
     routes: PageManifest[];
 
