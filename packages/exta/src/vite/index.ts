@@ -204,9 +204,7 @@ export function exta(options?: BaseConfig): Plugin[] {
       },
 
       transformIndexHtml(html) {
-        if (env.command === 'build') return;
-
-        return html.replace('%head%', '').replace('%body%', '<div id="_app"></div>');
+        return html.replace('%body%', '<div id="_app"></div>');
       },
 
       resolveId(id) {

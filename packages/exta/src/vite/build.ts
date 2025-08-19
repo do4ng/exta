@@ -48,9 +48,7 @@ export const serverRendering = (
     React.createElement(Layout, null, React.createElement(children, props)),
   );
 
-  return template
-    .replace('%body%', `<div id="_app">${string}</div>`)
-    .replace('%head%', '<script src="/.exta/client.js" type="module"></script>');
+  return template.replace('<div id="_app"></div>', `<div id="_app">${string}</div>`);
 };
 
 async function createStaticProps(
