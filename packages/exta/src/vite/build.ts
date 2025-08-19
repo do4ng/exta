@@ -18,6 +18,7 @@ import { compilePages, convertToRegex } from '~/core/routing';
 import { scanDirectory } from '~/utils/fs';
 import { changeExtension } from '~/utils/path';
 import { matchUrlToRoute } from '~/utils/params';
+import { CompileOptions } from '~/config/types';
 
 export function replaceParamsInRoute(
   route: string,
@@ -224,7 +225,7 @@ export async function createStaticHTML(
   );
 }
 
-export function extaBuild(): Plugin {
+export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
   let viteConfig: ResolvedConfig;
 
   const baseDir = join(process.cwd(), 'pages');
@@ -294,12 +295,12 @@ export function extaBuild(): Plugin {
     },
 
     async buildStart() {
-      pages = await compilePages({ outdir: viteConfig.build.outDir });
+      pages = await compilePages({ ...compilerOptions, outdir: viteConfig.build.outDir });
       initialize(viteConfig.build.outDir, pages);
     },
 
     async generateBundle(options, bundle) {
-      pages = await compilePages({ outdir: viteConfig.build.outDir });
+      pages = await compilePages({ ...compilerOptions, outdir: viteConfig.build.outDir });
       initialize(viteConfig.build.outDir || 'dist', pages);
 
       await createStaticProps(pages, viteConfig.build.outDir);
@@ -314,7 +315,10 @@ export function extaBuild(): Plugin {
       const { outDir } = viteConfig.build;
       const indexHTML = readFileSync(join(outDir, 'index.html')).toString();
 
-      pages = await compilePages({ outdir: viteConfig.build.outDir }, true);
+      pages = await compilePages(
+        { ...compilerOptions, outdir: viteConfig.build.outDir },
+        true,
+      );
 
       await createStaticHTML(pages, viteConfig.build.outDir, vite, indexHTML);
 

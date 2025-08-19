@@ -110,7 +110,7 @@ export function exta(options?: BaseConfig): Plugin[] {
           return [];
         }
 
-        _pages = await compilePages();
+        _pages = await compilePages(options?.compileOptions);
         _server_props.clear();
 
         if (
@@ -128,11 +128,11 @@ export function exta(options?: BaseConfig): Plugin[] {
       },
 
       async buildStart() {
-        _pages = await compilePages();
+        _pages = await compilePages(options?.compileOptions);
       },
 
       async configureServer(server) {
-        _pages = await compilePages();
+        _pages = await compilePages(options?.compileOptions);
 
         initialize(options?.compileOptions?.outdir, _pages);
 
@@ -235,6 +235,6 @@ export function exta(options?: BaseConfig): Plugin[] {
         }
       },
     },
-    extaBuild(),
+    extaBuild(options?.compileOptions || {}),
   ];
 }

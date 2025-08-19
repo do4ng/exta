@@ -1,6 +1,7 @@
 import { Plugin } from 'esbuild';
 import { builtinModules } from 'node:module';
 import { join } from 'node:path';
+import { CompileOptions } from '~/config/types';
 
 const BUILTIN_MODULES = builtinModules.concat(builtinModules.map((m) => `node:${m}`));
 
@@ -24,7 +25,12 @@ export function sideEffectPlugin(): Plugin {
 export function onlyReact(
   extensions: string[] = ['.css', '.scss', '.sass', '.less'],
   isServerSide: boolean = false,
+  options?: CompileOptions,
 ): Plugin {
+  if (options.assetsExtensions) {
+    extensions.push(...options.assetsExtensions);
+  }
+
   return {
     name: 'exta/esbuild-react-plugin',
     setup(build) {

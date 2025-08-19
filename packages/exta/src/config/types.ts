@@ -7,4 +7,5 @@ export interface CompileOptions {
   ignoreSideEffects?: boolean;
   preserveSideEffects?: string[];
   outdir?: string;
+  assetsExtensions?: string[];
 }

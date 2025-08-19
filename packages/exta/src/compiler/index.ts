@@ -50,7 +50,7 @@ export async function compilePage(
     jsx: 'automatic',
     ignoreAnnotations: true,
 
-    plugins: [sideEffectPlugin(), onlyReact(undefined, ignoreAssets)],
+    plugins: [sideEffectPlugin(), onlyReact(undefined, ignoreAssets, options)],
   });
 
   // compile server file to javascript
@@ -64,7 +64,7 @@ export async function compilePage(
     bundle: true,
     ignoreAnnotations: true,
 
-    plugins: [sideEffectPlugin(), onlyReact(undefined, true)],
+    plugins: [sideEffectPlugin(), onlyReact(undefined, true, options)],
   });
 
   return { outfiles };
