@@ -2,6 +2,7 @@ import React from 'react';
 
 type AnchorBaseProps = Omit<React.ComponentPropsWithoutRef<'a'>, 'href' | 'onClick'> & {
   href: string;
+  prefetch?: boolean;
   onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void | Promise<void>;
 };
 
@@ -14,15 +15,38 @@ function isExternal(url: string): boolean {
   }
 }
 
-export function Link({ href, onClick, ...props }: AnchorBaseProps) {
+function prettyURL(path: string): string {
+  if (path === '.') {
+    path = '';
+  }
+  if (!path.startsWith('/')) {
+    path = `/${path}`;
+  }
+  if (path.endsWith('/')) {
+    path = path.slice(0, -1);
+  }
+
+  return path;
+}
+
+export function Link({ href, onClick, prefetch, ...props }: AnchorBaseProps) {
   if (typeof window === 'undefined') {
-    return <a href={href}>{props.children}</a>;
+    return (
+      <a {...props} href={href}>
+        {props.children}
+      </a>
+    );
   }
 
   const useRouter = window._exta_useRouter;
   const extaRouter = window._exta_router;
-
   const router = useRouter();
+
+  if (!isExternal(href) && prefetch !== false) {
+    const url = new URL(href, window.location.origin).pathname;
+    extaRouter.prefetch(url);
+  }
+
   const handleClick = async (e) => {
     e.preventDefault();
 
@@ -38,7 +62,7 @@ export function Link({ href, onClick, ...props }: AnchorBaseProps) {
   };
 
   return (
-    <a href={href} onClick={handleClick} {...props}>
+    <a {...props} href={href} onClick={handleClick}>
       {props.children}
     </a>
   );

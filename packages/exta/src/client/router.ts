@@ -157,8 +157,16 @@ export class Router {
 
   data: Map<string, any> = new Map();
 
+  loadedModules: Map<string, any> = new Map();
+
   constructor(routes: PageManifest[]) {
     this.routes = routes;
+  }
+
+  async prefetch(url: string) {
+    const _url = prettyURL(url);
+    if (this.data.has(_url)) return;
+    this.data.set(_url, await loadPageData(url));
   }
 
   getHref(page: PageManifest) {
@@ -232,7 +240,10 @@ export class Router {
 
     if (!page) return;
 
-    const pageModule = await pages[page.path]();
+    const pageModule = this.loadedModules.has(page.path)
+      ? this.loadedModules.get(page.path)
+      : this.loadedModules.set(page.path, await pages[page.path]()).get(page.path);
+
     const _url = prettyURL(url);
     const data = this.data.has(_url)
       ? this.data.get(_url)

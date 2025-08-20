@@ -66,6 +66,8 @@ declare module '$exta-router' {
     findPage(url: string): PageManifest;
 
     goto(href: string): Promise<{ modules: any; data: any }>;
+
+    prefetch(url: string): Promise<void>;
   }
 
   export const router: Router;

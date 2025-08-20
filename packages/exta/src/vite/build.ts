@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, parse, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { createServer, Plugin, ResolvedConfig, ViteDevServer } from 'vite';
+import { createServer, Manifest, Plugin, ResolvedConfig, ViteDevServer } from 'vite';
 import { renderToString } from 'react-dom/server';
 import React from 'react';
 
@@ -38,15 +38,53 @@ export function replaceParamsInRoute(
 
   return result;
 }
+
+function collectCssFiles(manifest: Manifest, entry: string): string[] {
+  const result: string[] = [];
+  const visited = new Set<string>();
+
+  function recurse(key: string) {
+    if (visited.has(key)) return;
+    visited.add(key);
+
+    const chunk = manifest[key];
+    if (!chunk) return;
+
+    if (chunk.css) {
+      result.push(...chunk.css);
+    }
+
+    if (chunk.imports) {
+      for (const imported of chunk.imports) {
+        recurse(imported);
+      }
+    }
+  }
+
+  recurse(entry);
+  return result;
+}
+
 export const serverRendering = (
   children: any,
   Layout: any,
   props: object,
   template: string,
+  cssFiles: string[],
 ) => {
   const string = renderToString(
     React.createElement(Layout, null, React.createElement(children, props)),
   );
+
+  const insert = [];
+
+  for (const cssChunk of cssFiles) {
+    insert.push(`<link rel="stylesheet" href="/${cssChunk}" />`);
+  }
+
+  template = template.replace(/<head[^>]*>([\s\S]*?)<\/head>/, (match, inner) => {
+    return `<head${match.match(/<head([^>]*)>/)?.[1] || ''}>${insert.join('')}\n${inner}</head>`;
+  });
 
   return template.replace('<div id="_app"></div>', `<div id="_app">${string}</div>`);
 };
@@ -112,6 +150,7 @@ export async function createStaticHTML(
   outdir: string,
   vite: ViteDevServer,
   template: string,
+  manifest: Manifest,
 ) {
   const getLayout = async (params?: any, path?: string): Promise<any> => {
     if (!pages['[layout]']) return DefaultLayout;
@@ -150,10 +189,17 @@ export async function createStaticHTML(
 
   const ErrorComponent = await getError();
 
+  const layoutCss = pages['[layout]']
+    ? collectCssFiles(manifest, pages['[layout]'].client.replace(/\\/g, '/'))
+    : [];
+
   for (const pageName in pages) {
     const page = pages[pageName];
     const moduleUrl = pathToFileURL(page.server).href;
     const data = await import(moduleUrl);
+    const cssFiles = collectCssFiles(manifest, page.client.replace(/\\/g, '/'));
+
+    console.log(cssFiles, page.client.replace(/\\/g, '/'));
 
     if (data[PAGE_STATIC_PARAMS_FUNCTION]) {
       const paramsModule = await data[PAGE_STATIC_PARAMS_FUNCTION]();
@@ -184,6 +230,7 @@ export async function createStaticHTML(
               params: matchUrlToRoute(route, convertToRegex(pageName)),
             },
             template,
+            [...cssFiles, ...layoutCss],
           ),
         );
       }
@@ -210,6 +257,7 @@ export async function createStaticHTML(
             params: {},
           },
           template,
+          [...cssFiles, ...layoutCss],
         ),
       );
     }
@@ -219,7 +267,7 @@ export async function createStaticHTML(
 
   writeFileSync(
     join(outdir, '404.html'),
-    serverRendering(ErrorComponent, Layout, {}, template),
+    serverRendering(ErrorComponent, Layout, {}, template, [...layoutCss]),
   );
 }
 
@@ -266,6 +314,8 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
     async config(config) {
       config.build ??= {};
       config.build.rollupOptions ??= {};
+
+      config.build.manifest = true;
 
       const inputs = config.build.rollupOptions.input || {};
 
@@ -318,7 +368,10 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
         true,
       );
 
-      await createStaticHTML(pages, viteConfig.build.outDir, vite, indexHTML);
+      const manifestPath = join(outDir, '.vite/manifest.json');
+      const manifest: Manifest = JSON.parse(readFileSync(manifestPath).toString());
+
+      await createStaticHTML(pages, viteConfig.build.outDir, vite, indexHTML, manifest);
 
       await vite.close();
 
@@ -328,7 +381,6 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
       rmSync(join(outDir, 'server'), { recursive: true, force: true });
       rmSync(join(outDir, 'client'), { recursive: true, force: true });
     },
-    async buildEnd() {},
 
     transformIndexHtml(html) {
       return {
