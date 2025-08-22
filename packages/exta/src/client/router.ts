@@ -9,6 +9,10 @@ import { matchUrlToRoute } from '~/utils/params';
 
 const isServerSide = typeof window === 'undefined';
 
+const staticManifest: Record<string, string | null> = isServerSide
+  ? {}
+  : JSON.parse(document.getElementById('__STATIC_MANIFEST__')?.innerText || '{}');
+
 declare global {
   interface Window {
     __EXTA_PAGEMAP__: Record<string, string>;
@@ -34,13 +38,19 @@ export async function loadPageData(page: string): Promise<any> {
     const res = await fetch(`/.exta/__page_data?page=${page}`);
     return await res.json();
   } else {
+    const id = staticManifest[page.replace(/\//g, '_') + '.json'];
+    if (id === null) {
+      return { props: {} };
+    } else if (id === undefined) {
+      return { props: {}, status: 404 };
+    }
+    const target = `/data/${id}.json`;
+
     try {
-      const res = await fetch(`/data/${page.replace(/\//g, '_')}.json`);
+      const res = await fetch(target);
       return { props: await res.json() };
     } catch (__e) {
-      console.error(
-        `Cannot find page (fetching ${`/data/${page.replace(/\//g, '_')}.json`}) - ${__e.message}`,
-      );
+      console.error(`Cannot find page (fetching ${target}) - ${__e.message}`);
       return { props: {}, status: 404 };
     }
   }
@@ -85,7 +95,9 @@ function createHistoryStore() {
       return () => listeners.delete(listener);
     },
     getSnapshot() {
-      return window.location.pathname + window.location.search + window.location.hash;
+      return decodeURIComponent(
+        window.location.pathname + window.location.search + window.location.hash,
+      );
     },
     push(path) {
       history.pushState({}, '', path);
@@ -232,7 +244,7 @@ export class Router {
   }
 
   async goto(href: string) {
-    const url = new URL(href, window.location.origin).pathname;
+    const url = decodeURIComponent(new URL(href, window.location.origin).pathname);
     const page = this.findPage(url);
 
     await this.loadLayout();

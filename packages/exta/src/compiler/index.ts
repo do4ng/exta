@@ -7,7 +7,7 @@ import { CompileOptions } from '~/config/types';
 
 import { PAGE_STATIC_DATA_FUNCTION, PAGE_STATIC_PARAMS_FUNCTION } from './constants';
 import { generateOriginalServerFile, getExports } from './utils';
-import { onlyReact, sideEffectPlugin } from './plugin';
+import { onlyReact, sideEffectPlugin, vmPlugin } from './plugin';
 import { changeExtension } from '~/utils/path';
 
 export async function compilePage(
@@ -50,7 +50,7 @@ export async function compilePage(
     jsx: 'automatic',
     ignoreAnnotations: true,
 
-    plugins: [sideEffectPlugin(), onlyReact(undefined, ignoreAssets, options)],
+    plugins: [sideEffectPlugin(options), onlyReact(undefined, ignoreAssets, options)],
   });
 
   // compile server file to javascript
@@ -64,7 +64,7 @@ export async function compilePage(
     bundle: true,
     ignoreAnnotations: true,
 
-    plugins: [sideEffectPlugin(), onlyReact(undefined, true, options)],
+    plugins: [sideEffectPlugin(options), onlyReact(undefined, true, options), vmPlugin()],
   });
 
   return { outfiles };

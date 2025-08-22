@@ -19,6 +19,7 @@ import { scanDirectory } from '~/utils/fs';
 import { changeExtension } from '~/utils/path';
 import { matchUrlToRoute } from '~/utils/params';
 import { CompileOptions } from '~/config/types';
+import { info } from '~/logger';
 
 export function replaceParamsInRoute(
   route: string,
@@ -37,6 +38,14 @@ export function replaceParamsInRoute(
   result = result.replace(/\/index$/, '') || '/';
 
   return result;
+}
+
+function randomString16() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from(
+    { length: 16 },
+    () => chars[Math.floor(Math.random() * chars.length)],
+  ).join('');
 }
 
 function collectCssFiles(manifest: Manifest, entry: string): string[] {
@@ -71,6 +80,8 @@ export const serverRendering = (
   props: object,
   template: string,
   cssFiles: string[],
+  staticManifest: Record<string, string | null>,
+  preload: string[] = [],
 ) => {
   const string = renderToString(
     React.createElement(Layout, null, React.createElement(children, props)),
@@ -81,6 +92,14 @@ export const serverRendering = (
   for (const cssChunk of cssFiles) {
     insert.push(`<link rel="stylesheet" href="/${cssChunk}" />`);
   }
+
+  for (const preloadFile of preload) {
+    insert.push(`<link rel="prefetch" href="${preloadFile}" />`);
+  }
+
+  insert.push(
+    `<script id="__STATIC_MANIFEST__" type="application/json">${JSON.stringify(staticManifest)}</script>`,
+  );
 
   template = template.replace(/<head[^>]*>([\s\S]*?)<\/head>/, (match, inner) => {
     return `<head${match.match(/<head([^>]*)>/)?.[1] || ''}>${insert.join('')}\n${inner}</head>`;
@@ -93,6 +112,8 @@ async function createStaticProps(
   pages: Awaited<ReturnType<typeof compilePages>>,
   outdir: string,
 ) {
+  const staticManifest = {};
+
   for (const pageName in pages) {
     const page = pages[pageName];
     const moduleUrl = pathToFileURL(page.server).href;
@@ -108,30 +129,35 @@ async function createStaticProps(
       }
 
       for (const params of paramsModule) {
-        const outStaticPage = changeExtension(
-          join(
-            outdir,
-            'data',
-            replaceParamsInRoute(pageName, params).replace(/\//g, '_'),
-          ),
+        const outfile = changeExtension(
+          replaceParamsInRoute(pageName, params),
           '.json',
-        );
+        ).replace(/\//g, '_');
+        const random = randomString16();
+        const outStaticPage = join(outdir, 'data', `${random}.json`);
 
         mkdirSync(dirname(outStaticPage), { recursive: true });
+
+        staticManifest[outfile] = random;
 
         if (data[PAGE_STATIC_DATA_FUNCTION]) {
           const staticProps = await data[PAGE_STATIC_DATA_FUNCTION]({ params });
 
           writeFileSync(outStaticPage, JSON.stringify(staticProps));
         } else {
-          writeFileSync(outStaticPage, JSON.stringify({}));
+          staticManifest[outfile] = null;
         }
       }
     } else {
-      const outStaticPage = changeExtension(
-        join(outdir, 'data', replaceParamsInRoute(pageName, {}).replace(/\//g, '_')),
+      const outfile = changeExtension(
+        replaceParamsInRoute(pageName, {}),
         '.json',
-      );
+      ).replace(/\//g, '_');
+      const random = randomString16();
+      const outStaticPage = join(outdir, 'data', `${random}.json`);
+
+      staticManifest[outfile] = random;
+
       mkdirSync(dirname(outStaticPage), { recursive: true });
 
       if (data[PAGE_STATIC_DATA_FUNCTION]) {
@@ -139,10 +165,12 @@ async function createStaticProps(
 
         writeFileSync(outStaticPage, JSON.stringify(staticProps));
       } else {
-        writeFileSync(outStaticPage, JSON.stringify({}));
+        staticManifest[outfile] = null;
       }
     }
   }
+
+  return staticManifest;
 }
 
 export async function createStaticHTML(
@@ -151,27 +179,36 @@ export async function createStaticHTML(
   vite: ViteDevServer,
   template: string,
   manifest: Manifest,
+  staticManifest: Record<string, string | null>,
 ) {
   const getLayout = async (params?: any, path?: string): Promise<any> => {
-    if (!pages['[layout]']) return DefaultLayout;
+    if (!pages['[layout]']) return [DefaultLayout, []];
 
     global.__EXTA_SSR_DATA__ = {
       pathname: path,
       params,
+      preload: [],
     };
 
-    return (await vite.ssrLoadModule(pages['[layout]'].client))._page;
+    return [
+      (await vite.ssrLoadModule(pages['[layout]'].client))._page,
+      global.__EXTA_SSR_DATA__.preload,
+    ];
   };
 
   const getError = async (): Promise<any> => {
-    if (!pages['[error]']) return DefaultError;
+    if (!pages['[error]']) return [DefaultError, []];
 
     global.__EXTA_SSR_DATA__ = {
       pathname: null,
       params: null,
+      preload: [],
     };
 
-    return (await vite.ssrLoadModule(pages['[error]'].client))._page;
+    return [
+      (await vite.ssrLoadModule(pages['[error]'].client))._page,
+      global.__EXTA_SSR_DATA__.preload,
+    ];
   };
 
   const getClientComponent = async (
@@ -182,9 +219,10 @@ export async function createStaticHTML(
     global.__EXTA_SSR_DATA__ = {
       pathname: url,
       params,
+      preload: [],
     };
 
-    return (await vite.ssrLoadModule(path))._page;
+    return [(await vite.ssrLoadModule(path))._page, global.__EXTA_SSR_DATA__.preload];
   };
 
   const ErrorComponent = await getError();
@@ -193,13 +231,15 @@ export async function createStaticHTML(
     ? collectCssFiles(manifest, pages['[layout]'].client.replace(/\\/g, '/'))
     : [];
 
+  writeFileSync(join(outdir, 'data', '_empty.json'), '{}');
+
   for (const pageName in pages) {
+    info(`[exta] compiling ${pageName}`);
+
     const page = pages[pageName];
     const moduleUrl = pathToFileURL(page.server).href;
     const data = await import(moduleUrl);
     const cssFiles = collectCssFiles(manifest, page.client.replace(/\\/g, '/'));
-
-    console.log(cssFiles, page.client.replace(/\\/g, '/'));
 
     if (data[PAGE_STATIC_PARAMS_FUNCTION]) {
       const paramsModule = await data[PAGE_STATIC_PARAMS_FUNCTION]();
@@ -214,16 +254,25 @@ export async function createStaticHTML(
         const route = replaceParamsInRoute(pageName, params);
         const outStaticPage = changeExtension(join(outdir, route), '.html');
         const staticDataPath = changeExtension(
-          join(outdir, 'data', route.replace(/\//g, '_')),
+          join(
+            outdir,
+            'data',
+            staticManifest[route.replace(/\//g, '_') + '.json'] || '_empty',
+          ),
           '.json',
         );
-        const Layout = await getLayout(params, route);
+        const [Layout, layoutPreload] = await getLayout(params, route);
+        const [Client, clientPreload] = await getClientComponent(
+          page.client,
+          route,
+          params,
+        );
 
         mkdirSync(dirname(outStaticPage), { recursive: true });
         writeFileSync(
           outStaticPage,
           serverRendering(
-            await getClientComponent(page.client, route, params),
+            Client,
             Layout,
             {
               props: JSON.parse(readFileSync(staticDataPath).toString()),
@@ -231,6 +280,8 @@ export async function createStaticHTML(
             },
             template,
             [...cssFiles, ...layoutCss],
+            staticManifest,
+            [...layoutPreload, ...clientPreload],
           ),
         );
       }
@@ -240,17 +291,22 @@ export async function createStaticHTML(
       const route = replaceParamsInRoute(pageName, {});
       const outStaticPage = join(outdir, route) + '/index.html';
       const staticDataPath = changeExtension(
-        join(outdir, 'data', route.replace(/\//g, '_')),
+        join(
+          outdir,
+          'data',
+          staticManifest[route.replace(/\//g, '_') + '.json'] || '_empty',
+        ),
         '.json',
       );
-      const Layout = await getLayout({}, route);
+      const [Layout, layoutPreload] = await getLayout({}, route);
+      const [Client, clientPreload] = await getClientComponent(page.client, route, {});
 
       mkdirSync(dirname(outStaticPage), { recursive: true });
 
       writeFileSync(
         outStaticPage,
         serverRendering(
-          await getClientComponent(page.client, route, {}),
+          Client,
           Layout,
           {
             props: JSON.parse(readFileSync(staticDataPath).toString()),
@@ -258,6 +314,8 @@ export async function createStaticHTML(
           },
           template,
           [...cssFiles, ...layoutCss],
+          staticManifest,
+          [...layoutPreload, ...clientPreload],
         ),
       );
     }
@@ -267,7 +325,14 @@ export async function createStaticHTML(
 
   writeFileSync(
     join(outdir, '404.html'),
-    serverRendering(ErrorComponent, Layout, {}, template, [...layoutCss]),
+    serverRendering(
+      ErrorComponent[0],
+      Layout[0],
+      {},
+      template,
+      [...layoutCss],
+      staticManifest,
+    ),
   );
 }
 
@@ -280,6 +345,7 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
 
   let pages;
   let vite: ViteDevServer;
+  let staticManifest: Record<string, string | null>;
 
   function generatePageMap(
     bundle: import('rollup').OutputBundle,
@@ -351,7 +417,7 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
       pages = await compilePages({ ...compilerOptions, outdir: viteConfig.build.outDir });
       initialize(viteConfig.build.outDir || 'dist', pages);
 
-      await createStaticProps(pages, viteConfig.build.outDir);
+      staticManifest = await createStaticProps(pages, viteConfig.build.outDir);
 
       writeFileSync(
         join(viteConfig.build.outDir, 'map.json'),
@@ -371,7 +437,14 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
       const manifestPath = join(outDir, '.vite/manifest.json');
       const manifest: Manifest = JSON.parse(readFileSync(manifestPath).toString());
 
-      await createStaticHTML(pages, viteConfig.build.outDir, vite, indexHTML, manifest);
+      await createStaticHTML(
+        pages,
+        viteConfig.build.outDir,
+        vite,
+        indexHTML,
+        manifest,
+        staticManifest,
+      );
 
       await vite.close();
 

@@ -36,7 +36,7 @@ router.goto(window.location.href).then(() => {
 function App() {
   const location = useLocation();
 
-  const url = new URL(location, window.location.origin).pathname;
+  const url = decodeURIComponent(new URL(location, window.location.origin).pathname);
   const props = router.data.get(prettyURL(url));
   const page = router.findPage(url);
   const Layout = router.layout._page;

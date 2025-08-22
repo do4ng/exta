@@ -5,18 +5,40 @@ import { CompileOptions } from '~/config/types';
 
 const BUILTIN_MODULES = builtinModules.concat(builtinModules.map((m) => `node:${m}`));
 
-export function sideEffectPlugin(): Plugin {
+export function sideEffectPlugin(options?: CompileOptions): Plugin {
   return {
     name: 'exta/esbuild-sideeffect-plugin',
     setup(build) {
       build.onResolve({ filter: /.*/ }, async (args) => {
-        if (BUILTIN_MODULES.includes(args.path)) {
+        if (
+          BUILTIN_MODULES.includes(args.path) ||
+          (options?.ignoreSideEffects &&
+            (options?.preserveSideEffects || []).includes(args.path))
+        ) {
           return {
             sideEffects: false,
             path: args.path,
             external: true,
           };
         }
+      });
+    },
+  };
+}
+
+export function vmPlugin(): Plugin {
+  return {
+    name: 'my-virtual-module-plugin',
+    setup(build) {
+      build.onResolve({ filter: /^\$exta-router$/ }, (args) => {
+        return { path: args.path, namespace: 'virtual' };
+      });
+
+      build.onLoad({ filter: /^\$exta-router$/, namespace: 'virtual' }, () => {
+        return {
+          contents: `module.exports = {};`,
+          loader: 'js',
+        };
       });
     },
   };

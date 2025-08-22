@@ -22,6 +22,46 @@ const resolvedClientModuleId = '\0' + clientModuleId;
 const routerModuleId = '$exta-router';
 const resolvedRouterModuleId = '\0' + routerModuleId;
 
+function decodeJSON<T>(input: T): T {
+  if (typeof input === 'string') {
+    try {
+      return decodeURIComponent(input) as unknown as T;
+    } catch {
+      return input;
+    }
+  } else if (Array.isArray(input)) {
+    return input.map((item) => decodeJSON(item)) as unknown as T;
+  } else if (input && typeof input === 'object') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any = {};
+    for (const [key, value] of Object.entries(input)) {
+      result[key] = decodeJSON(value);
+    }
+    return result;
+  }
+  return input;
+}
+
+function encodeJSON<T>(input: T): T {
+  if (typeof input === 'string') {
+    try {
+      return encodeURIComponent(input) as unknown as T;
+    } catch {
+      return input;
+    }
+  } else if (Array.isArray(input)) {
+    return input.map((item) => encodeJSON(item)) as unknown as T;
+  } else if (input && typeof input === 'object') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any = {};
+    for (const [key, value] of Object.entries(input)) {
+      result[key] = encodeJSON(value);
+    }
+    return result;
+  }
+  return input;
+}
+
 export function exta(options?: BaseConfig): Plugin[] {
   const isDev = process.env.NODE_ENV === 'development';
   const dist = options?.compileOptions.outdir ?? join(process.cwd(), '.exta');
@@ -68,7 +108,7 @@ export function exta(options?: BaseConfig): Plugin[] {
 
   const findPage = (url: string) => {
     for (const route of _manifest_object) {
-      if (route.regexp.test(url)) {
+      if (route.regexp.test(decodeURIComponent(url))) {
         return route;
       }
     }
@@ -142,7 +182,7 @@ export function exta(options?: BaseConfig): Plugin[] {
             const page = url.searchParams.get('page') || '/';
             const clientURL = new URL(page, 'http://localhost');
             const pageManifest = findPage(page);
-            const prettyPathname = prettyURL(clientURL.pathname);
+            const prettyPathname = prettyURL(decodeURIComponent(clientURL.pathname));
 
             if (!pageManifest?.buildServerPath)
               return res.end(JSON.stringify({ props: {}, status: 404 }));
@@ -169,15 +209,12 @@ export function exta(options?: BaseConfig): Plugin[] {
             res.setHeader('Content-Type', 'application/json');
 
             if (serverModule[PAGE_STATIC_PARAMS_FUNCTION]) {
-              const availableParams = await serverModule[PAGE_STATIC_PARAMS_FUNCTION]({
-                url,
-                params,
-              });
+              const availableParams = await serverModule[PAGE_STATIC_PARAMS_FUNCTION]();
 
               let success = false;
 
               for (const allowedParams of availableParams) {
-                if (isDeepStrictEqual(allowedParams, params)) {
+                if (isDeepStrictEqual(encodeJSON(allowedParams), params)) {
                   success = true;
                 }
               }
@@ -193,7 +230,9 @@ export function exta(options?: BaseConfig): Plugin[] {
             }
 
             if (serverModule.getStaticProps) {
-              data = await serverModule.getStaticProps({ url: clientURL, params });
+              data = await serverModule.getStaticProps({
+                params,
+              });
             }
 
             _server_props.set(prettyPathname, data);
