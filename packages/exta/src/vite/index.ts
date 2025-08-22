@@ -108,7 +108,11 @@ export function exta(options?: BaseConfig): Plugin[] {
 
   const findPage = (url: string) => {
     for (const route of _manifest_object) {
-      if (route.regexp.test(decodeURIComponent(url))) {
+      if (
+        route.regexp.test(decodeURIComponent(url)) &&
+        !route.path.startsWith('[') &&
+        !route.path.endsWith(']')
+      ) {
         return route;
       }
     }

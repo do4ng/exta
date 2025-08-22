@@ -237,7 +237,11 @@ export class Router {
   findPage(url: string) {
     url = url.toLowerCase();
     for (const route of this.routes) {
-      if (route.regexp.test(url)) {
+      if (
+        route.regexp.test(url) &&
+        !route.path.startsWith('[') &&
+        !route.path.endsWith(']')
+      ) {
         return route;
       }
     }
