@@ -37,9 +37,11 @@ function App() {
   const location = useLocation();
 
   const url = decodeURIComponent(new URL(location, window.location.origin).pathname);
-  const props = router.data.get(prettyURL(url));
+  const props = router.data.get(prettyURL(url).toLowerCase());
   const page = router.findPage(url);
   const Layout = router.layout._page;
+
+  window.scrollTo({ top: 0, behavior: 'instant' });
 
   if (!page || props?.status === 404) {
     return React.createElement(

@@ -235,6 +235,7 @@ export class Router {
   }
 
   findPage(url: string) {
+    url = url.toLowerCase();
     for (const route of this.routes) {
       if (route.regexp.test(url)) {
         return route;
@@ -244,7 +245,9 @@ export class Router {
   }
 
   async goto(href: string) {
-    const url = decodeURIComponent(new URL(href, window.location.origin).pathname);
+    const url = decodeURIComponent(
+      new URL(href, window.location.origin).pathname,
+    ).toLowerCase();
     const page = this.findPage(url);
 
     await this.loadLayout();
