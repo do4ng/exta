@@ -22,26 +22,6 @@ const resolvedClientModuleId = '\0' + clientModuleId;
 const routerModuleId = '$exta-router';
 const resolvedRouterModuleId = '\0' + routerModuleId;
 
-function decodeJSON<T>(input: T): T {
-  if (typeof input === 'string') {
-    try {
-      return decodeURIComponent(input) as unknown as T;
-    } catch {
-      return input;
-    }
-  } else if (Array.isArray(input)) {
-    return input.map((item) => decodeJSON(item)) as unknown as T;
-  } else if (input && typeof input === 'object') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result: any = {};
-    for (const [key, value] of Object.entries(input)) {
-      result[key] = decodeJSON(value);
-    }
-    return result;
-  }
-  return input;
-}
-
 function encodeJSON<T>(input: T): T {
   if (typeof input === 'string') {
     try {
