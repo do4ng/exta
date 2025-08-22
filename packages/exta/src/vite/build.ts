@@ -81,8 +81,14 @@ export const serverRendering = (
   template: string,
   cssFiles: string[],
   staticManifest: Record<string, string | null>,
-  preload: string[] = [],
+  path: string,
 ) => {
+  global.__EXTA_SSR_DATA__ = {
+    pathname: path,
+    params: (props as any).params || {},
+    preload: [],
+    head: [],
+  };
   const string = renderToString(
     React.createElement(Layout, null, React.createElement(children, props)),
   );
@@ -93,13 +99,15 @@ export const serverRendering = (
     insert.push(`<link rel="stylesheet" href="/${cssChunk}" />`);
   }
 
-  for (const preloadFile of preload) {
+  for (const preloadFile of global.__EXTA_SSR_DATA__.preload) {
     insert.push(`<link rel="prefetch" href="${preloadFile}" />`);
   }
 
   insert.push(
     `<script id="__STATIC_MANIFEST__" type="application/json">${JSON.stringify(staticManifest)}</script>`,
   );
+
+  insert.push(...global.__EXTA_SSR_DATA__.head);
 
   template = template.replace(/<head[^>]*>([\s\S]*?)<\/head>/, (match, inner) => {
     return `<head${match.match(/<head([^>]*)>/)?.[1] || ''}>${insert.join('')}\n${inner}</head>`;
@@ -181,51 +189,22 @@ export async function createStaticHTML(
   manifest: Manifest,
   staticManifest: Record<string, string | null>,
 ) {
-  const getLayout = async (params?: any, path?: string): Promise<any> => {
-    if (!pages['[layout]']) return [DefaultLayout, []];
-
-    global.__EXTA_SSR_DATA__ = {
-      pathname: path,
-      params,
-      preload: [],
-    };
-
-    return [
-      (await vite.ssrLoadModule(pages['[layout]'].client))._page,
-      global.__EXTA_SSR_DATA__.preload,
-    ];
+  const getLayout = async (): Promise<any> => {
+    if (!pages['[layout]']) return DefaultLayout;
+    return (await vite.ssrLoadModule(pages['[layout]'].client))._page;
   };
 
   const getError = async (): Promise<any> => {
-    if (!pages['[error]']) return [DefaultError, []];
-
-    global.__EXTA_SSR_DATA__ = {
-      pathname: null,
-      params: null,
-      preload: [],
-    };
-
-    return [
-      (await vite.ssrLoadModule(pages['[error]'].client))._page,
-      global.__EXTA_SSR_DATA__.preload,
-    ];
+    if (!pages['[error]']) return DefaultError;
+    return (await vite.ssrLoadModule(pages['[error]'].client))._page;
   };
 
-  const getClientComponent = async (
-    path: string,
-    url: string,
-    params?: any,
-  ): Promise<any> => {
-    global.__EXTA_SSR_DATA__ = {
-      pathname: url,
-      params,
-      preload: [],
-    };
-
-    return [(await vite.ssrLoadModule(path))._page, global.__EXTA_SSR_DATA__.preload];
+  const getClientComponent = async (path: string): Promise<any> => {
+    return (await vite.ssrLoadModule(path))._page;
   };
 
   const ErrorComponent = await getError();
+  const Layout = await getLayout();
 
   const layoutCss = pages['[layout]']
     ? collectCssFiles(manifest, pages['[layout]'].client.replace(/\\/g, '/'))
@@ -261,12 +240,7 @@ export async function createStaticHTML(
           ),
           '.json',
         );
-        const [Layout, layoutPreload] = await getLayout(params, route);
-        const [Client, clientPreload] = await getClientComponent(
-          page.client,
-          route,
-          params,
-        );
+        const Client = await getClientComponent(page.client);
 
         mkdirSync(dirname(outStaticPage), { recursive: true });
         writeFileSync(
@@ -281,7 +255,7 @@ export async function createStaticHTML(
             template,
             [...cssFiles, ...layoutCss],
             staticManifest,
-            [...layoutPreload, ...clientPreload],
+            route,
           ),
         );
       }
@@ -298,8 +272,7 @@ export async function createStaticHTML(
         ),
         '.json',
       );
-      const [Layout, layoutPreload] = await getLayout({}, route);
-      const [Client, clientPreload] = await getClientComponent(page.client, route, {});
+      const Client = await getClientComponent(page.client);
 
       mkdirSync(dirname(outStaticPage), { recursive: true });
 
@@ -315,23 +288,22 @@ export async function createStaticHTML(
           template,
           [...cssFiles, ...layoutCss],
           staticManifest,
-          [...layoutPreload, ...clientPreload],
+          route,
         ),
       );
     }
   }
 
-  const Layout = await getLayout({});
-
   writeFileSync(
     join(outdir, '404.html'),
     serverRendering(
-      ErrorComponent[0],
-      Layout[0],
+      ErrorComponent,
+      Layout,
       {},
       template,
       [...layoutCss],
       staticManifest,
+      '.exta/ssr:unknown',
     ),
   );
 }
