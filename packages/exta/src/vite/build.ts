@@ -19,7 +19,6 @@ import { scanDirectory } from '~/utils/fs';
 import { changeExtension } from '~/utils/path';
 import { matchUrlToRoute } from '~/utils/params';
 import { CompileOptions } from '~/config/types';
-import { info } from '~/logger';
 
 export function replaceParamsInRoute(
   route: string,
@@ -213,8 +212,6 @@ export async function createStaticHTML(
   writeFileSync(join(outdir, 'data', '_empty.json'), '{}');
 
   for (const pageName in pages) {
-    info(`[exta] compiling ${pageName}`);
-
     const page = pages[pageName];
     const moduleUrl = pathToFileURL(page.server).href;
     const data = await import(moduleUrl);
@@ -389,6 +386,10 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
       pages = await compilePages({ ...compilerOptions, outdir: viteConfig.build.outDir });
       initialize(viteConfig.build.outDir || 'dist', pages);
 
+      console.log();
+
+      console.log('Generating static data...');
+
       staticManifest = await createStaticProps(pages, viteConfig.build.outDir);
 
       writeFileSync(
@@ -409,6 +410,8 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
       const manifestPath = join(outDir, '.vite/manifest.json');
       const manifest: Manifest = JSON.parse(readFileSync(manifestPath).toString());
 
+      console.log('Generating html files...');
+
       await createStaticHTML(
         pages,
         viteConfig.build.outDir,
@@ -425,6 +428,18 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
       rmSync(join(outDir, 'client.js'), { recursive: true, force: true });
       rmSync(join(outDir, 'server'), { recursive: true, force: true });
       rmSync(join(outDir, 'client'), { recursive: true, force: true });
+
+      console.log('\nBuild Summary');
+
+      for (const staticFile in staticManifest) {
+        if (!staticManifest[staticFile]) {
+          console.log(`${changeExtension(staticFile.replace(/_/g, '/'), '').cyan.dim}`);
+          continue;
+        }
+        console.log(
+          `${changeExtension(staticFile.replace(/_/g, '/'), '').padEnd(60).cyan}${`${(staticManifest[staticFile] || 'null').bold}.json`.gray}`,
+        );
+      }
     },
 
     transformIndexHtml(html) {
