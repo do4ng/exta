@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
-import { router, useLocation } from '$exta-router';
+import { router, usePathname } from '$exta-router';
 import { matchUrlToRoute } from '~/utils/params';
 
 function prettyURL(path: string): string {
@@ -34,7 +34,7 @@ router.goto(window.location.href).then(() => {
 });
 
 function App() {
-  const location = useLocation();
+  const location = usePathname();
 
   const url = decodeURIComponent(new URL(location, window.location.origin).pathname);
   const props = router.data.get(prettyURL(url).toLowerCase());
