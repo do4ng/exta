@@ -15,7 +15,6 @@ import {
 } from '~/compiler/constants';
 import { initialize } from '~/core';
 import { compilePages, convertToRegex } from '~/core/routing';
-import { scanDirectory } from '~/utils/fs';
 import { changeExtension } from '~/utils/path';
 import { matchUrlToRoute } from '~/utils/params';
 import { CompileOptions } from '~/config/types';
@@ -206,7 +205,13 @@ export async function createStaticHTML(
   const Layout = await getLayout();
 
   const layoutCss = pages['[layout]']
-    ? collectCssFiles(manifest, pages['[layout]'].client.replace(/\\/g, '/'))
+    ? collectCssFiles(
+        manifest,
+        `.exta/${pages['[layout]'].client.replace(/^[^/\\]+[\\/]/, '')}`.replace(
+          /\\/g,
+          '/',
+        ),
+      )
     : [];
 
   writeFileSync(join(outdir, 'data', '_empty.json'), '{}');
@@ -215,7 +220,10 @@ export async function createStaticHTML(
     const page = pages[pageName];
     const moduleUrl = pathToFileURL(page.server).href;
     const data = await import(moduleUrl);
-    const cssFiles = collectCssFiles(manifest, page.client.replace(/\\/g, '/'));
+    const cssFiles = collectCssFiles(
+      manifest,
+      `.exta/${page.client.replace(/^[^/\\]+[\\/]/, '')}`.replace(/\\/g, '/'),
+    );
 
     if (data[PAGE_STATIC_PARAMS_FUNCTION]) {
       const paramsModule = await data[PAGE_STATIC_PARAMS_FUNCTION]();
@@ -308,8 +316,6 @@ export async function createStaticHTML(
 export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
   let viteConfig: ResolvedConfig;
 
-  const baseDir = join(process.cwd(), 'pages');
-  const pagesPath = scanDirectory(baseDir);
   const pageMap = {};
 
   let pages;
@@ -340,28 +346,23 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
     return pageMap;
   }
 
-  initialize(undefined, {});
-
   return {
     name: 'exta:build',
     apply: 'build',
 
     async config(config) {
+      initialize(config.build.outDir || 'dist', {});
+      pages = await compilePages({
+        ...compilerOptions,
+        outdir: config.build.outDir || 'dist',
+      });
+
       config.build ??= {};
       config.build.rollupOptions ??= {};
 
       config.build.manifest = true;
 
       const inputs = config.build.rollupOptions.input || {};
-
-      for (const pagePath of pagesPath) {
-        const relativePath = relative(baseDir, pagePath);
-        const name = relativePath;
-        inputs[name] = changeExtension(
-          join(config.build.outDir || 'dist', 'client', relativePath),
-          '.js',
-        );
-      }
 
       inputs['index.html'] = 'index.html';
 
@@ -377,14 +378,11 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
       viteConfig = config;
     },
 
-    async buildStart() {
-      pages = await compilePages({ ...compilerOptions, outdir: viteConfig.build.outDir });
-      initialize(viteConfig.build.outDir, pages);
-    },
+    async buildStart() {},
 
     async generateBundle(options, bundle) {
       pages = await compilePages({ ...compilerOptions, outdir: viteConfig.build.outDir });
-      initialize(viteConfig.build.outDir || 'dist', pages);
+      initialize(viteConfig.build.outDir, pages);
 
       console.log();
 

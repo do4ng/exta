@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { getIndexHtml } from './index.html';
 
@@ -6,6 +6,7 @@ export function initialize(
   dist: string = join(process.cwd(), '.exta'),
   pages: Record<string, { client: string; server: string }>,
 ) {
+  mkdirSync(dist, { recursive: true });
   writeFileSync(
     join(dist, 'index.html'),
     getIndexHtml()

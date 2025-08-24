@@ -198,9 +198,13 @@ export class Router {
   }
 
   preload(page: PageManifest) {
+    const href = this.getHref(page);
+
+    if (!href) return;
+
     const preload = document.createElement('link');
     preload.rel = 'prefetch';
-    preload.href = this.getHref(page);
+    preload.href = href;
     document.head.appendChild(preload);
   }
 
