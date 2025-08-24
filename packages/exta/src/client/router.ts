@@ -100,6 +100,12 @@ function createHistoryStore() {
       );
     },
     push(path) {
+      if (path.startsWith('#')) {
+        // disable push state when only hash changed
+        location.hash = path;
+        return;
+      }
+
       history.pushState({}, '', path);
       notify();
     },
