@@ -4,7 +4,8 @@
     "packages/**/*.ts",
     "packages/**/*.d.ts",
     "packages/**/*.test.ts",
-    "packages/**/*.test.tsx"
+    "packages/**/*.test.tsx",
+    "rollup.config.js"
   ],
   "compilerOptions": { "rootDir": "." }
 }

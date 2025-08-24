@@ -6,6 +6,7 @@
     "skipLibCheck": true,
     "outDir": "./dist",
     "esModuleInterop": true,
+    "checkJs": true,
     "module": "ESNext",
     "forceConsistentCasingInFileNames": true,
     "strictPropertyInitialization": false,

@@ -1,9 +1,9 @@
-import { exec } from 'node:child_process';
 import { build, BuildOptions } from 'esbuild';
 import { nodeExternalsPlugin } from 'esbuild-node-externals';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import * as glob from 'glob';
 import { dirname, join } from 'node:path';
+
 import { esmSplitCodeToCjs } from './splitting';
 
 const buildPkgs = glob.globSync(['packages/**/*/build.json']);
@@ -63,18 +63,4 @@ for (const pkg of buildPkgs) {
     });
 
   esmBuild();
-
-  if (process.argv.includes('--types')) {
-    console.log('+ Generating .d.ts ');
-
-    const execute = exec('tsc --emitDeclarationOnly --declaration', {
-      cwd: buildBase,
-    });
-
-    execute.stderr?.on('data', (data) => console.error(data.toString()));
-    execute.stdout?.on('data', (data) => console.log(data.toString()));
-    execute.on('close', () => {
-      console.log('+ .d.ts compilation done\n');
-    });
-  }
 }
