@@ -210,6 +210,12 @@ export class Router {
 
     if (!href) return;
 
+    const preloaded = document.getElementsByTagName('link');
+
+    for (const preloadScript of [...preloaded]) {
+      if (preloadScript.href === new URL(href, window.location.origin).href) return;
+    }
+
     const preload = document.createElement('link');
     preload.rel = 'prefetch';
     preload.href = href;

@@ -110,7 +110,7 @@ export const serverRendering = (
   }
 
   for (const script of scripts) {
-    insert.push(`<script src="${script}" type="module"></script>`);
+    insert.push(`<link rel="modulepreload" href="/${script}"></link>`);
   }
 
   insert.push(
