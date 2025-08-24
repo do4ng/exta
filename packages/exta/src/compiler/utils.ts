@@ -77,8 +77,8 @@ export async function generateOriginalServerFile(
   await writeFile(
     outClientFile,
     hasFunction.default
-      ? `export { default as _page } from "${relative(dirname(outClientFile), filename).replace(/\\/g, '/')}";`
-      : 'export const _page = () => null',
+      ? `export { default as _page } from "${relative(dirname(outClientFile), filename).replace(/\\/g, '/')}";export const __exta_page=true;`
+      : 'export const _page = () => null;export const __exta_page=true;',
   );
 
   return {

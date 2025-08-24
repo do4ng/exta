@@ -115,7 +115,15 @@ const historyStore = createHistoryStore();
 export function useLocation() {
   if (isServerSide) return global.__EXTA_SSR_DATA__.pathname || '/.exta/ssr:unknown';
 
-  return React.useSyncExternalStore(historyStore.subscribe, historyStore.getSnapshot);
+  return React.useSyncExternalStore(
+    historyStore.subscribe,
+    historyStore.getSnapshot,
+    () => {
+      return typeof window === 'undefined'
+        ? global?.__EXTA_SSR_DATA__?.pathname
+        : historyStore.getSnapshot();
+    },
+  );
 }
 
 function useURL() {

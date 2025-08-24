@@ -80,6 +80,7 @@ export const serverRendering = (
   cssFiles: string[],
   staticManifest: Record<string, string | null>,
   path: string,
+  scripts: string[],
 ) => {
   global.__EXTA_SSR_DATA__ = {
     pathname: path,
@@ -88,7 +89,14 @@ export const serverRendering = (
     head: [],
   };
   const string = renderToString(
-    React.createElement(Layout, null, React.createElement(children, props)),
+    React.createElement(
+      Layout,
+      null,
+      React.createElement(children, {
+        ...props,
+        key: path,
+      }),
+    ),
   );
 
   const insert = [];
@@ -99,6 +107,10 @@ export const serverRendering = (
 
   for (const preloadFile of global.__EXTA_SSR_DATA__.preload) {
     insert.push(`<link rel="prefetch" href="${preloadFile}" />`);
+  }
+
+  for (const script of scripts) {
+    insert.push(`<script src="${script}" type="module"></script>`);
   }
 
   insert.push(
@@ -204,15 +216,12 @@ export async function createStaticHTML(
   const ErrorComponent = await getError();
   const Layout = await getLayout();
 
+  const layoutCompiledFile =
+    `.exta/${pages['[layout]'].client.replace(/^[^/\\]+[\\/]/, '')}`.replace(/\\/g, '/');
   const layoutCss = pages['[layout]']
-    ? collectCssFiles(
-        manifest,
-        `.exta/${pages['[layout]'].client.replace(/^[^/\\]+[\\/]/, '')}`.replace(
-          /\\/g,
-          '/',
-        ),
-      )
+    ? collectCssFiles(manifest, layoutCompiledFile)
     : [];
+  const layoutScript = manifest[layoutCompiledFile]?.file;
 
   writeFileSync(join(outdir, 'data', '_empty.json'), '{}');
 
@@ -220,10 +229,12 @@ export async function createStaticHTML(
     const page = pages[pageName];
     const moduleUrl = pathToFileURL(page.server).href;
     const data = await import(moduleUrl);
-    const cssFiles = collectCssFiles(
-      manifest,
-      `.exta/${page.client.replace(/^[^/\\]+[\\/]/, '')}`.replace(/\\/g, '/'),
+    const compiledFile = `.exta/${page.client.replace(/^[^/\\]+[\\/]/, '')}`.replace(
+      /\\/g,
+      '/',
     );
+    const cssFiles = collectCssFiles(manifest, compiledFile);
+    const script = manifest[compiledFile].file;
 
     if (data[PAGE_STATIC_PARAMS_FUNCTION]) {
       const paramsModule = await data[PAGE_STATIC_PARAMS_FUNCTION]();
@@ -261,6 +272,7 @@ export async function createStaticHTML(
             [...cssFiles, ...layoutCss],
             staticManifest,
             route,
+            [layoutScript, script],
           ),
         );
       }
@@ -294,6 +306,7 @@ export async function createStaticHTML(
           [...cssFiles, ...layoutCss],
           staticManifest,
           route,
+          [layoutScript, script],
         ),
       );
     }
@@ -309,6 +322,7 @@ export async function createStaticHTML(
       [...layoutCss],
       staticManifest,
       '.exta/ssr:unknown',
+      [],
     ),
   );
 }
@@ -329,12 +343,14 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
 
     for (const key in bundle) {
       if (bundle[key].type === 'asset') continue;
-      if (!bundle[key].isEntry) continue;
+      if (!bundle[key].isDynamicEntry && !bundle[key].exports.includes('__exta_page'))
+        continue;
 
       let setKey = relative(
-        join(viteConfig.build.outDir, 'client').replace(/\\/g, '/'),
+        join('.exta', 'client').replace(/\\/g, '/'),
         bundle[key].facadeModuleId,
       );
+
       const pageName = parse(setKey).name;
 
       if (pageName === '_layout') setKey = '[layout]';
@@ -447,7 +463,7 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
           {
             tag: 'script',
             injectTo: 'head',
-            attrs: { id: '_e_pagemap_', type: 'text/javascript' },
+            attrs: { id: '__PAGE_MAP__', type: 'text/javascript' },
             children: `window.__EXTA_PAGEMAP__ = ${JSON.stringify(pageMap)}`,
           },
         ],
