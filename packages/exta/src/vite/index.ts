@@ -1,8 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 import { join, relative } from 'node:path';
 
 import { ConfigEnv, Plugin } from 'vite';
+
+import type { PageManifest } from '$exta-manifest';
 
 import { BaseConfig } from '~/config/types';
 import { initialize } from '~/core';
@@ -10,10 +13,9 @@ import { compilePages, convertToRegex, prettyURL } from '~/core/routing';
 import { matchUrlToRoute } from '~/utils/params';
 import { PAGE_STATIC_PARAMS_FUNCTION } from '~/compiler/constants';
 import { scanDirectory } from '~/utils/fs';
+import { encodeJSON } from '~/utils/url';
 
-import type { PageManifest } from '$exta-manifest';
 import { extaBuild } from './build';
-import { isDeepStrictEqual } from 'node:util';
 
 const manifestModuleId = '$exta-manifest';
 const resolvedManifestModuleId = '\0' + manifestModuleId;
@@ -22,34 +24,14 @@ const resolvedClientModuleId = '\0' + clientModuleId;
 const routerModuleId = '$exta-router';
 const resolvedRouterModuleId = '\0' + routerModuleId;
 
-function encodeJSON<T>(input: T): T {
-  if (typeof input === 'string') {
-    try {
-      return encodeURIComponent(input) as unknown as T;
-    } catch {
-      return input;
-    }
-  } else if (Array.isArray(input)) {
-    return input.map((item) => encodeJSON(item)) as unknown as T;
-  } else if (input && typeof input === 'object') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result: any = {};
-    for (const [key, value] of Object.entries(input)) {
-      result[key] = encodeJSON(value);
-    }
-    return result;
-  }
-  return input;
-}
-
 export function exta(options?: BaseConfig): Plugin[] {
   const isDev = process.env.NODE_ENV === 'development';
   const dist = options?.compileOptions.outdir ?? join(process.cwd(), '.exta');
   const _manifest_object: PageManifest[] = [];
+  const _server_props = new Map<string, any>();
+
   let _pages: Record<string, { server: string; client: string }>;
   let _manifest: string = null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const _server_props = new Map<string, any>();
   let logger: import('vite').Logger;
   let env: ConfigEnv;
 

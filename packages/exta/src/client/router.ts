@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { PAGES_MANIFEST as manifest, PageManifest } from '$exta-manifest';
 import pages from '$exta-pages';
 import React from 'react';

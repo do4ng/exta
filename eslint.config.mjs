@@ -21,6 +21,7 @@ export default tseslint.config([
     rules: {
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
       'import/enforce-node-protocol-usage': ['error', 'always'],
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 ]);
