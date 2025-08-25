@@ -23,7 +23,7 @@ for (const pkg of buildPkgs) {
         file: join(buildBase, 'dist', parse(file).name + '.d.ts'),
         format: 'es',
       },
-      plugins: [dts()],
+      plugins: [dts({ tsconfig: join(buildBase, 'tsconfig.json') })],
       external: [
         ...Object.keys(packageJSON.dependencies || {}),
         ...Object.keys(packageJSON.devDependencies || {}),
