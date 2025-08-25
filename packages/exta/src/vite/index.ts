@@ -11,11 +11,15 @@ import { BaseConfig } from '~/config/types';
 import { initialize } from '~/core';
 import { compilePages, convertToRegex, prettyURL } from '~/core/routing';
 import { matchUrlToRoute } from '~/utils/params';
-import { PAGE_STATIC_PARAMS_FUNCTION } from '~/compiler/constants';
+import {
+  PAGE_STATIC_DATA_FUNCTION,
+  PAGE_STATIC_PARAMS_FUNCTION,
+} from '~/compiler/constants';
 import { scanDirectory } from '~/utils/fs';
 import { encodeJSON } from '~/utils/url';
 
 import { extaBuild } from './build';
+import { ServerModule } from './type';
 
 const manifestModuleId = '$exta-manifest';
 const resolvedManifestModuleId = '\0' + manifestModuleId;
@@ -144,15 +148,21 @@ export function exta(options?: BaseConfig): Plugin[] {
 
         if (isDev) {
           server.middlewares.use('/.exta/__page_data', async (req, res) => {
-            const url = new URL(req.url, 'http://localhost');
+            const url = new URL(req.url, 'http://localhost'); // request url
             const page = url.searchParams.get('page') || '/';
-            const clientURL = new URL(page, 'http://localhost');
+
+            const clientURL = new URL(page, 'http://localhost'); // page url
+
             const pageManifest = findPage(page);
             const prettyPathname = prettyURL(decodeURIComponent(clientURL.pathname));
 
+            res.setHeader('Content-Type', 'application/json');
+
+            // cannot find server module
             if (!pageManifest?.buildServerPath)
               return res.end(JSON.stringify({ props: {}, status: 404 }));
 
+            // cache static props
             if (_server_props.has(prettyPathname)) {
               return res.end(
                 JSON.stringify({
@@ -163,8 +173,13 @@ export function exta(options?: BaseConfig): Plugin[] {
               );
             }
 
+            // load client page module
             const moduleUrl = pathToFileURL(pageManifest.buildServerPath).href;
-            const serverModule = await import(`${moduleUrl}?v=${Date.now()}`);
+            const serverModule: ServerModule = await import(
+              `${moduleUrl}?v=${Date.now()}`
+            );
+
+            // generate params with pathname
             const params = matchUrlToRoute(clientURL.pathname, {
               regex: pageManifest.regexp,
               params: pageManifest.params,
@@ -172,8 +187,7 @@ export function exta(options?: BaseConfig): Plugin[] {
 
             let data = {};
 
-            res.setHeader('Content-Type', 'application/json');
-
+            // check is valid path (comparing params)
             if (serverModule[PAGE_STATIC_PARAMS_FUNCTION]) {
               const availableParams = await serverModule[PAGE_STATIC_PARAMS_FUNCTION]();
 
@@ -195,14 +209,13 @@ export function exta(options?: BaseConfig): Plugin[] {
               }
             }
 
-            if (serverModule.getStaticProps) {
-              data = await serverModule.getStaticProps({
+            // execute getStaticProps
+            if (serverModule[PAGE_STATIC_DATA_FUNCTION]) {
+              data = await serverModule[PAGE_STATIC_DATA_FUNCTION]({
                 params,
               });
             }
-
             _server_props.set(prettyPathname, data);
-
             res.end(JSON.stringify({ props: data, status: 200 }));
           });
         }

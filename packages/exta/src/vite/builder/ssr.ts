@@ -13,6 +13,7 @@ import { compilePages, convertToRegex } from '~/core/routing';
 import { matchUrlToRoute } from '~/utils/params';
 import { changeExtension } from '~/utils/path';
 import { replaceParamsInRoute } from './shared';
+import { ExtaLayout, ExtaPage } from '../type';
 
 // collect vite css dependencies
 export function collectCssFiles(manifest: Manifest, entry: string): string[] {
@@ -106,19 +107,19 @@ export async function createStaticHTML(
   staticManifest: Record<string, string | null>,
 ) {
   // load layout component (/pages/_layout or default layout)
-  const getLayout = async (): Promise<any> => {
+  const getLayout = async (): Promise<ExtaLayout> => {
     if (!pages['[layout]']) return DefaultLayout;
     return (await vite.ssrLoadModule(pages['[layout]'].client))._page;
   };
 
   // load error component (/pages/_error or default layout)
-  const getError = async (): Promise<any> => {
+  const getError = async (): Promise<ExtaPage> => {
     if (!pages['[error]']) return DefaultError;
     return (await vite.ssrLoadModule(pages['[error]'].client))._page;
   };
 
   // load page component
-  const getClientComponent = async (path: string): Promise<any> => {
+  const getClientComponent = async (path: string): Promise<ExtaPage> => {
     return (await vite.ssrLoadModule(path))._page;
   };
 
