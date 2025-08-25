@@ -7,5 +7,6 @@ export default defineConfig({
     },
     isolate: false,
     globals: true,
+    projects: ['packages/*/vitest.config.ts'],
   },
 });
