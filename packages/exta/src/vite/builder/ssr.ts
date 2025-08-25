@@ -58,35 +58,36 @@ export const serverRendering = (
     preload: [],
     head: [],
   };
-  const string = renderToString(
-    React.createElement(
-      Layout,
-      null,
-      React.createElement(children, {
-        ...props,
-        key: path,
-      }),
-    ),
-  );
+
+  const component = React.createElement(children, {
+    ...props,
+    key: path,
+  });
+  const string = renderToString(React.createElement(Layout, null, component));
 
   const insert = [];
 
+  // stylesheet assets from vite entrypoints
   for (const cssChunk of cssFiles) {
     insert.push(`<link rel="stylesheet" href="/${cssChunk}" />`);
   }
 
+  // prefetch request from development stage
   for (const preloadFile of global.__EXTA_SSR_DATA__.preload) {
     insert.push(`<link rel="prefetch" href="${preloadFile}" />`);
   }
 
+  // scripts for corresponding page
   for (const script of scripts) {
     insert.push(`<link rel="modulepreload" href="/${script}"></link>`);
   }
 
+  // static props link
   insert.push(
     `<script id="__STATIC_MANIFEST__" type="application/json">${JSON.stringify(staticManifest)}</script>`,
   );
 
+  // From (<Head />)
   insert.push(...global.__EXTA_SSR_DATA__.head);
 
   template = template.replace(/<head[^>]*>([\s\S]*?)<\/head>/, (match, inner) => {
@@ -104,16 +105,19 @@ export async function createStaticHTML(
   manifest: Manifest,
   staticManifest: Record<string, string | null>,
 ) {
+  // load layout component (/pages/_layout or default layout)
   const getLayout = async (): Promise<any> => {
     if (!pages['[layout]']) return DefaultLayout;
     return (await vite.ssrLoadModule(pages['[layout]'].client))._page;
   };
 
+  // load error component (/pages/_error or default layout)
   const getError = async (): Promise<any> => {
     if (!pages['[error]']) return DefaultError;
     return (await vite.ssrLoadModule(pages['[error]'].client))._page;
   };
 
+  // load page component
   const getClientComponent = async (path: string): Promise<any> => {
     return (await vite.ssrLoadModule(path))._page;
   };
