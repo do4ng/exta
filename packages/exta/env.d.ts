@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-misused-new */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 declare module '$exta-manifest' {
   export interface PageManifest {
     regexp: RegExp;
