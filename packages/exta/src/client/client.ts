@@ -18,21 +18,6 @@ function prettyURL(path: string): string {
   return path;
 }
 
-router.preloadAllPages();
-
-router.goto(window.location.href).then(() => {
-  let root;
-  if (import.meta.env.PROD) {
-    root = ReactDOM.hydrateRoot(
-      document.getElementById('_app'),
-      React.createElement(App, null),
-    );
-  } else {
-    root = ReactDOM.createRoot(document.getElementById('_app'));
-    root.render(React.createElement(App, null));
-  }
-});
-
 function App() {
   const location = usePathname();
 
@@ -60,3 +45,18 @@ function App() {
     React.createElement(Page, { key: location, ...props, params }),
   );
 }
+
+router.preloadAllPages();
+
+router.goto(window.location.href).then(() => {
+  let root;
+  if (import.meta.env.PROD) {
+    root = ReactDOM.hydrateRoot(
+      document.getElementById('_app'),
+      React.createElement(App, null),
+    );
+  } else {
+    root = ReactDOM.createRoot(document.getElementById('_app'));
+    root.render(React.createElement(App, null));
+  }
+});
