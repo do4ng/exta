@@ -9,7 +9,7 @@ import type { PageManifest } from '$exta-manifest';
 
 import { BaseConfig } from '~/config/types';
 import { initialize } from '~/core';
-import { compilePages, convertToRegex, prettyURL } from '~/core/routing';
+import { compilePages, prettyURL } from '~/core/routing';
 import { matchUrlToRoute } from '~/utils/params';
 import {
   PAGE_STATIC_DATA_FUNCTION,
@@ -17,6 +17,8 @@ import {
 } from '~/compiler/constants';
 import { scanDirectory } from '~/utils/fs';
 import { encodeJSON } from '~/utils/url';
+import { convertToRegex } from '~/utils/urlPath';
+import { findPage as findPageDev } from '~/utils/find';
 
 import { extaBuild } from './build';
 import { ServerModule } from './type';
@@ -72,18 +74,7 @@ export function exta(options?: BaseConfig): Plugin[] {
     return _manifest;
   }
 
-  const findPage = (url: string) => {
-    for (const route of _manifest_object) {
-      if (
-        route.regexp.test(decodeURIComponent(url)) &&
-        !route.path.startsWith('[') &&
-        !route.path.endsWith(']')
-      ) {
-        return route;
-      }
-    }
-    return null;
-  };
+  const findPage = (url: string) => findPageDev(url, _manifest_object);
 
   return [
     {

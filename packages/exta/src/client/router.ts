@@ -5,6 +5,7 @@ import { isSamePathClient, removeExtension } from '~/utils/clientPath';
 import { DefaultLayout } from './components/_layout.';
 import { DefaultError } from './components/_error';
 import { matchUrlToRoute } from '~/utils/params';
+import { findPage as findPageDev } from '~/utils/find';
 
 const isServerSide = typeof window === 'undefined';
 
@@ -259,16 +260,7 @@ export class Router {
 
   findPage(url: string) {
     url = url.toLowerCase();
-    for (const route of this.routes) {
-      if (
-        route.regexp.test(url) &&
-        !route.path.startsWith('[') &&
-        !route.path.endsWith(']')
-      ) {
-        return route;
-      }
-    }
-    return null;
+    return findPageDev(url, this.routes);
   }
 
   async goto(href: string) {

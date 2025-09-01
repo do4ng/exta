@@ -9,9 +9,10 @@ import { ViteDevServer, Manifest } from 'vite';
 import { DefaultError } from '~/client/components/_error';
 import { DefaultLayout } from '~/client/components/_layout.';
 import { PAGE_STATIC_PARAMS_FUNCTION } from '~/compiler/constants';
-import { compilePages, convertToRegex } from '~/core/routing';
+import { compilePages } from '~/core/routing';
 import { matchUrlToRoute } from '~/utils/params';
 import { changeExtension } from '~/utils/path';
+import { convertToRegex } from '~/utils/urlPath';
 import { replaceParamsInRoute } from './shared';
 import { ExtaLayout, ExtaPage } from '../type';
 
