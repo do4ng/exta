@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { join, relative } from 'node:path';
@@ -22,6 +22,7 @@ import { findPage as findPageDev } from '~/utils/find';
 
 import { extaBuild } from './build';
 import { ServerModule } from './type';
+import { changeExtension } from '~/utils/path';
 
 const manifestModuleId = '$exta-manifest';
 const resolvedManifestModuleId = '\0' + manifestModuleId;
@@ -45,8 +46,11 @@ export function exta(options?: BaseConfig): Plugin[] {
 
   mkdirSync(dist);
 
-  function generateManifest(rawManif: Awaited<ReturnType<typeof compilePages>>): string {
-    if (_manifest) return _manifest;
+  function generateManifest(
+    rawManif: Awaited<ReturnType<typeof compilePages>>,
+    force: boolean = false,
+  ): string {
+    if (_manifest && !force) return _manifest;
 
     const manifest: string[] = [];
 
@@ -107,19 +111,87 @@ export function exta(options?: BaseConfig): Plugin[] {
       },
 
       async handleHotUpdate({ server, file }) {
-        if (file.includes('.exta')) {
-          return [];
-        }
+        if (file.includes('.exta')) return []; // skip .exta
+
+        const dist = options?.compileOptions?.outdir || join(process.cwd(), '.exta');
 
         _pages = await compilePages(options?.compileOptions);
         _server_props.clear();
 
-        if (
-          scanDirectory(join(process.cwd(), 'pages'))
-            .map((p) => p.replace(/\\/g, '/'))
-            .includes(file.replace(/\\/g, '/'))
-        ) {
+        const beforeManifest = `${_manifest}`;
+        const afterManifest = generateManifest(_pages, true);
+
+        // when page structure changed
+        if (beforeManifest !== afterManifest) {
           server.ws.send({ type: 'full-reload' });
+          return [];
+        }
+
+        writeFileSync(
+          join(dist, 'manifest.js'),
+          `export default {${Object.keys(_pages)
+            .map(
+              (page) =>
+                `  "${page}": () => import("./${relative(dist, _pages[page].client).replace(/\\/g, '/')}"),\n`,
+            )
+            .join('\n')}}`,
+        );
+
+        // helper: invalidate module + trigger HMR
+        const invalidateAndUpdate = (modid: any, isVirtual = true) => {
+          if (!modid) return;
+
+          const mod = server.moduleGraph.getModuleById(modid);
+
+          if (!mod) return;
+
+          server.moduleGraph.invalidateModule(mod);
+
+          server.ws.send({
+            type: 'update',
+            updates: [
+              {
+                type: 'js-update',
+                path: isVirtual ? '/@id/' + mod.id : mod.url,
+                acceptedPath: isVirtual ? '/@id/' + mod.id : mod.url,
+                timestamp: Date.now(),
+              },
+            ],
+          });
+        };
+
+        // update virtual modules
+        invalidateAndUpdate(resolvedManifestModuleId);
+        invalidateAndUpdate(
+          (await server.moduleGraph.getModuleByUrl('$exta-pages'))?.id ?? null,
+        );
+
+        // HMR for pages tsx
+        const normalizedFile = file.replace(/\\/g, '/');
+        const pagesDirectory = join(process.cwd(), 'pages');
+        const pagesFiles = scanDirectory(pagesDirectory).map((p) =>
+          p.replace(/\\/g, '/'),
+        );
+        const compiledFile = changeExtension(
+          join(
+            process.cwd(),
+            '.exta',
+            'client',
+            relative(pagesDirectory, normalizedFile),
+          ),
+          '.js',
+        ).replace(/\\/g, '/');
+
+        if (pagesFiles.includes(normalizedFile)) {
+          const modules = Array.from(server.moduleGraph.urlToModuleMap.values()).filter(
+            (mod) => {
+              return mod.file && mod.file.replace(/\\/g, '/') === compiledFile;
+            },
+          );
+
+          for (const mod of modules) {
+            invalidateAndUpdate(mod.id, false); // HMR update
+          }
         }
 
         logger.info(
