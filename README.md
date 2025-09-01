@@ -4,7 +4,7 @@ SSG Framework for React
 
 ## Features
 
-- **[File-based Routing](/docs/routing)**: Generates routes based on file names.
+- **[File-based Routing](https://extajs.netlify.app/docs/routing)**: Generates routes based on file names.
 
 - **Fast startup**: Runs with the speed of Vite and Esbuild.
 
