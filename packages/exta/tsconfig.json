@@ -7,7 +7,7 @@
     "paths": {
       "~/*": ["../exta/src/*"]
     },
-    "types": ["@types/node", "./env.d.ts", "./vite.d.ts"]
+    "types": ["@types/node", "./env.d.ts", "./vite.d.ts", "./ssr.d.ts"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

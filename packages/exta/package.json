@@ -1,6 +1,6 @@
 {
   "name": "exta",
-  "version": "0.0.1-beta.23",
+  "version": "0.0.1-beta.24",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -9,7 +9,8 @@
   "description": "Static Site Generator",
   "files": [
     "dist",
-    "env.d.ts"
+    "env.d.ts",
+    "ssr.d.ts"
   ],
   "dependencies": {
     "colors": "^1.4.0",
@@ -38,6 +39,7 @@
       "import": "./dist/client.mjs"
     },
     "./package.json": "./package.json",
-    "./env.d.ts": "./env.d.ts"
+    "./env.d.ts": "./env.d.ts",
+    "./ssr.d.ts": "./ssr.d.ts"
   }
 }
