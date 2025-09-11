@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { Manifest } from 'vite';
 
-import { collectCssFiles, serverRendering } from '~/vite/builder/ssr';
+import { collectCssFiles, parsePathname, serverRendering } from '~/vite/builder/ssr';
 
 // React dummy component for page
 function DummyPage({ props }: { props?: any }) {
@@ -13,16 +13,16 @@ describe('serverRendering', () => {
   it('should inject css, preload, and scripts into head', () => {
     const template = `<!DOCTYPE html><html><head><title>Test</title></head><body><div id="_app"></div></body></html>`;
 
-    const html = serverRendering(
-      DummyPage,
-      ({ children }: any) => React.createElement('div', { id: 'layout' }, children),
-      { props: { msg: 'SSR' } },
+    const html = serverRendering(DummyPage, {
+      Layout: ({ children }: any) =>
+        React.createElement('div', { id: 'layout' }, children),
+      props: { props: { msg: 'SSR' } },
       template,
-      ['style.css'],
-      { '/index.json': null },
-      '/index',
-      ['client.js'],
-    );
+      cssFiles: ['style.css'],
+      staticManifest: { '/index.json': null },
+      path: '/index',
+      scripts: ['client.js'],
+    });
 
     expect(html).toContain('<link rel="stylesheet" href="/style.css" />');
     expect(html).toContain('<link rel="modulepreload" href="/client.js">');
@@ -50,5 +50,12 @@ describe('collectCssFiles', () => {
     const css = collectCssFiles(manifest, 'entry.js');
     expect(css).toContain('entry.css');
     expect(css).toContain('dep.css');
+  });
+});
+
+describe('parse pathname', () => {
+  it('should parse pathname return consistent url', () => {
+    expect(parsePathname('/a')).toBe('/a');
+    expect(parsePathname('/a/')).toBe('/a');
   });
 });

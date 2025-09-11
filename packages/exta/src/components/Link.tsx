@@ -3,6 +3,7 @@ import React from 'react';
 type AnchorBaseProps = Omit<React.ComponentPropsWithoutRef<'a'>, 'href' | 'onClick'> & {
   href: string;
   prefetch?: boolean;
+  preload?: boolean;
   onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void | Promise<void>;
 };
 
@@ -15,8 +16,11 @@ function isExternal(url: string): boolean {
   }
 }
 
-export function Link({ href, onClick, prefetch, ...props }: AnchorBaseProps) {
+export function Link({ href, onClick, prefetch, preload, ...props }: AnchorBaseProps) {
   if (typeof window === 'undefined') {
+    if (preload) {
+      global.__EXTA_SSR_DATA__.head.push({ type: 'preload-data-link', data: href });
+    }
     return (
       <a {...props} href={href}>
         {props.children}

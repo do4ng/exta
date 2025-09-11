@@ -16,6 +16,26 @@ import { convertToRegex } from '~/utils/urlPath';
 import { replaceParamsInRoute } from './shared';
 import { ExtaLayout, ExtaPage } from '../type';
 
+const fileRegexp = /^[^/\\]+[\\/]/;
+
+interface SSRProps {
+  Layout: any;
+  props: object;
+  template: string;
+  cssFiles: string[];
+  staticManifest: Record<string, string | null>;
+  path: string;
+  scripts: string[];
+}
+
+export function parsePathname(url: string) {
+  let { pathname } = new URL(url, 'http://localhost/');
+
+  if (pathname.endsWith('/')) pathname = pathname.slice(0, -1);
+
+  return pathname;
+}
+
 // collect vite css dependencies
 export function collectCssFiles(manifest: Manifest, entry: string): string[] {
   const result: string[] = [];
@@ -46,13 +66,7 @@ export function collectCssFiles(manifest: Manifest, entry: string): string[] {
 // render page on server side
 export const serverRendering = (
   children: any,
-  Layout: any,
-  props: object,
-  template: string,
-  cssFiles: string[],
-  staticManifest: Record<string, string | null>,
-  path: string,
-  scripts: string[],
+  { Layout, props, template, cssFiles, staticManifest, path, scripts }: SSRProps,
 ) => {
   global.__EXTA_SSR_DATA__ = {
     pathname: path,
@@ -90,7 +104,31 @@ export const serverRendering = (
   );
 
   // From (<Head />)
-  insert.push(...global.__EXTA_SSR_DATA__.head);
+
+  for (const head of global.__EXTA_SSR_DATA__.head) {
+    switch (head.type) {
+      // raw html
+      case 'html':
+        insert.push(head.data);
+        break;
+
+      // module preload
+      case 'preload-data-link': {
+        const page = parsePathname(head.data).replace(/\//g, '_') + '.json';
+        if (staticManifest[page]) {
+          insert.push(
+            `<link rel="preload" href="/data/${staticManifest[page]}.json" as="fetch"></link>`,
+          );
+        } else {
+          insert.push(`<!--${head.data}-->`);
+        }
+        break;
+      }
+
+      default:
+        break;
+    }
+  }
 
   template = template.replace(/<head[^>]*>([\s\S]*?)<\/head>/, (match, inner) => {
     return `<head${match.match(/<head([^>]*)>/)?.[1] || ''}>${insert.join('')}\n${inner}</head>`;
@@ -128,7 +166,7 @@ export async function createStaticHTML(
   const Layout = await getLayout();
 
   const layoutCompiledFile =
-    `.exta/${pages['[layout]'].client.replace(/^[^/\\]+[\\/]/, '')}`.replace(/\\/g, '/');
+    `.exta/${pages['[layout]'].client.replace(fileRegexp, '')}`.replace(/\\/g, '/');
   const layoutCss = pages['[layout]']
     ? collectCssFiles(manifest, layoutCompiledFile)
     : [];
@@ -140,7 +178,7 @@ export async function createStaticHTML(
     const page = pages[pageName];
     const moduleUrl = pathToFileURL(page.server).href;
     const data = await import(moduleUrl);
-    const compiledFile = `.exta/${page.client.replace(/^[^/\\]+[\\/]/, '')}`.replace(
+    const compiledFile = `.exta/${page.client.replace(fileRegexp, '')}`.replace(
       /\\/g,
       '/',
     );
@@ -169,23 +207,21 @@ export async function createStaticHTML(
         );
         const Client = await getClientComponent(page.client);
 
+        const ssrProps: SSRProps = {
+          Layout,
+          props: {
+            props: JSON.parse(readFileSync(staticDataPath).toString()),
+            params: matchUrlToRoute(route, convertToRegex(pageName)),
+          },
+          template,
+          cssFiles: [...cssFiles, ...layoutCss],
+          staticManifest,
+          path: route,
+          scripts: [layoutScript, script],
+        };
+
         mkdirSync(dirname(outStaticPage), { recursive: true });
-        writeFileSync(
-          outStaticPage,
-          serverRendering(
-            Client,
-            Layout,
-            {
-              props: JSON.parse(readFileSync(staticDataPath).toString()),
-              params: matchUrlToRoute(route, convertToRegex(pageName)),
-            },
-            template,
-            [...cssFiles, ...layoutCss],
-            staticManifest,
-            route,
-            [layoutScript, script],
-          ),
-        );
+        writeFileSync(outStaticPage, serverRendering(Client, ssrProps));
       }
     } else {
       if (pageName.startsWith('[') && pageName.endsWith(']')) continue;
@@ -202,38 +238,31 @@ export async function createStaticHTML(
       );
       const Client = await getClientComponent(page.client);
 
-      mkdirSync(dirname(outStaticPage), { recursive: true });
+      const ssrProps: SSRProps = {
+        Layout,
+        props: {
+          props: JSON.parse(readFileSync(staticDataPath).toString()),
+          params: {},
+        },
+        template,
+        cssFiles: [...cssFiles, ...layoutCss],
+        staticManifest,
+        path: route,
+        scripts: [layoutScript, script],
+      };
 
-      writeFileSync(
-        outStaticPage,
-        serverRendering(
-          Client,
-          Layout,
-          {
-            props: JSON.parse(readFileSync(staticDataPath).toString()),
-            params: {},
-          },
-          template,
-          [...cssFiles, ...layoutCss],
-          staticManifest,
-          route,
-          [layoutScript, script],
-        ),
-      );
+      mkdirSync(dirname(outStaticPage), { recursive: true });
+      writeFileSync(outStaticPage, serverRendering(Client, ssrProps));
     }
   }
-
-  writeFileSync(
-    join(outdir, '404.html'),
-    serverRendering(
-      ErrorComponent,
-      Layout,
-      {},
-      template,
-      [...layoutCss],
-      staticManifest,
-      '.exta/ssr:unknown',
-      [],
-    ),
-  );
+  const ssrProps: SSRProps = {
+    Layout,
+    props: {},
+    template,
+    cssFiles: [...layoutCss],
+    staticManifest,
+    path: '.exta/ssr:unknown',
+    scripts: [],
+  };
+  writeFileSync(join(outdir, '404.html'), serverRendering(ErrorComponent, ssrProps));
 }

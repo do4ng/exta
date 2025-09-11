@@ -126,12 +126,14 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
       console.log('\nBuild Summary');
 
       for (const staticFile in staticManifest) {
+        const filename = changeExtension(staticFile.replace(/_/g, '/'), '');
+
         if (!staticManifest[staticFile]) {
-          console.log(`${changeExtension(staticFile.replace(/_/g, '/'), '').cyan.dim}`);
+          console.log(`${filename.cyan.dim}`);
           continue;
         }
         console.log(
-          `${changeExtension(staticFile.replace(/_/g, '/'), '').padEnd(60).cyan}${`${(staticManifest[staticFile] || 'null').bold}.json`.gray}`,
+          `${filename.padEnd(60).cyan}${`${(staticManifest[staticFile] || 'null').bold}.json`.gray}`,
         );
       }
     },
