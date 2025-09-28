@@ -1,5 +1,6 @@
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { pathToFileURL } from 'node:url';
 
 import { renderToString } from 'react-dom/server';
@@ -15,6 +16,7 @@ import { changeExtension } from '~/utils/path';
 import { convertToRegex } from '~/utils/urlPath';
 import { replaceParamsInRoute } from './shared';
 import { ExtaErrorComponent, ExtaLayout, ExtaPage } from '../type';
+import { Spinner } from '~/utils/spinner';
 
 const fileRegexp = /^[^/\\]+[\\/]/;
 
@@ -145,6 +147,12 @@ export async function createStaticHTML(
   manifest: Manifest,
   staticManifest: Record<string, string | null>,
 ) {
+  const startTime = performance.now();
+  const spinner = new Spinner();
+
+  spinner.message = 'Generating html files...';
+  spinner.start();
+
   // load layout component (/pages/_layout or default layout)
   const getLayout = async (): Promise<ExtaLayout> => {
     if (!pages['[layout]']) return DefaultLayout;
@@ -205,6 +213,9 @@ export async function createStaticHTML(
           ),
           '.json',
         );
+
+        spinner.message = `Generating html files... - ${route}`;
+
         const Client = await getClientComponent(page.client);
 
         const ssrProps: SSRProps = {
@@ -236,6 +247,9 @@ export async function createStaticHTML(
         ),
         '.json',
       );
+
+      spinner.message = `Generating html files... - ${route}`;
+
       const Client = await getClientComponent(page.client);
 
       const ssrProps: SSRProps = {
@@ -265,4 +279,7 @@ export async function createStaticHTML(
     scripts: [],
   };
   writeFileSync(join(outdir, '404.html'), serverRendering(ErrorComponent, ssrProps));
+  spinner.stop(
+    `html files generated. (${((performance.now() - startTime) / 1000).toFixed(2)}s)`,
+  );
 }

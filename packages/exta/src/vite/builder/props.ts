@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { pathToFileURL } from 'node:url';
 import {
   PAGE_STATIC_PARAMS_FUNCTION,
@@ -9,15 +10,24 @@ import { compilePages } from '~/core/routing';
 import { changeExtension } from '~/utils/path';
 import { randomString16 } from '~/utils/random';
 import { replaceParamsInRoute } from './shared';
+import { Spinner } from '~/utils/spinner';
 
 // generate static props executing `getStaticParams` and `getStaticProps`
 export async function createStaticProps(
   pages: Awaited<ReturnType<typeof compilePages>>,
   outdir: string,
 ) {
+  const startTime = performance.now();
   const staticManifest = {};
 
+  const spinner = new Spinner();
+
+  spinner.message = 'Generating static data';
+  spinner.start();
+
   for (const pageName in pages) {
+    spinner.message = `Generating static data - collecting pages (${pageName})`;
+
     const page = pages[pageName];
     const moduleUrl = pathToFileURL(page.server).href;
     const data = await import(moduleUrl);
@@ -32,12 +42,12 @@ export async function createStaticProps(
       }
 
       for (const params of paramsModule) {
-        const outfile = changeExtension(
-          replaceParamsInRoute(pageName, params),
-          '.json',
-        ).replace(/\//g, '_');
+        const originalURL = replaceParamsInRoute(pageName, params);
+        const outfile = changeExtension(originalURL, '.json').replace(/\//g, '_');
         const random = randomString16();
         const outStaticPage = join(outdir, 'data', `${random}.json`);
+
+        spinner.message = `Generating static data - ${originalURL}`;
 
         mkdirSync(dirname(outStaticPage), { recursive: true });
 
@@ -52,12 +62,12 @@ export async function createStaticProps(
         }
       }
     } else {
-      const outfile = changeExtension(
-        replaceParamsInRoute(pageName, {}),
-        '.json',
-      ).replace(/\//g, '_');
+      const originalURL = replaceParamsInRoute(pageName, {});
+      const outfile = changeExtension(originalURL, '.json').replace(/\//g, '_');
       const random = randomString16();
       const outStaticPage = join(outdir, 'data', `${random}.json`);
+
+      spinner.message = `Generating static data - ${originalURL}`;
 
       staticManifest[outfile] = random;
 
@@ -72,6 +82,10 @@ export async function createStaticProps(
       }
     }
   }
+
+  spinner.stop(
+    `Static props generated. (${((performance.now() - startTime) / 1000).toFixed(2)}s)`,
+  );
 
   return staticManifest;
 }

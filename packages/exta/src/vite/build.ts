@@ -81,10 +81,10 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
       initialize(viteConfig.build.outDir, pages);
 
       console.log();
-
-      console.log('Generating static data...');
+      console.log();
 
       staticManifest = await createStaticProps(pages, viteConfig.build.outDir);
+      console.log();
 
       writeFileSync(
         join(viteConfig.build.outDir, 'map.json'),
@@ -104,8 +104,7 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
       const manifestPath = join(outDir, '.vite/manifest.json');
       const manifest: Manifest = JSON.parse(readFileSync(manifestPath).toString());
 
-      console.log('Generating html files...');
-
+      console.log();
       await createStaticHTML(
         pages,
         viteConfig.build.outDir,
@@ -123,19 +122,31 @@ export function extaBuild(compilerOptions: CompileOptions = {}): Plugin {
       rmSync(join(outDir, 'server'), { recursive: true, force: true });
       rmSync(join(outDir, 'client'), { recursive: true, force: true });
 
-      console.log('\nBuild Summary');
+      // build summary
+      // run : BUILD_SUMMARY=true vite build
+      if (process.env.BUILD_SUMMARY) {
+        const buildSummary = [];
 
-      for (const staticFile in staticManifest) {
-        const filename = changeExtension(staticFile.replace(/_/g, '/'), '');
+        buildSummary.push('Build Summary');
 
-        if (!staticManifest[staticFile]) {
-          console.log(`${filename.cyan.dim}`);
-          continue;
+        for (const staticFile in staticManifest) {
+          const filename = changeExtension(staticFile.replace(/_/g, '/'), '');
+
+          if (!staticManifest[staticFile]) {
+            buildSummary.push(`${filename}`);
+            continue;
+          }
+          buildSummary.push(
+            `${filename.padEnd(60)}${`${staticManifest[staticFile] || 'null'}.json`}`,
+          );
         }
+
+        writeFileSync(join(__dirname, '../summary.txt'), buildSummary.join('\n'));
         console.log(
-          `${filename.padEnd(60).cyan}${`${(staticManifest[staticFile] || 'null').bold}.json`.gray}`,
+          `\nCheck the ${join(__dirname, '../summary.txt')} file to view the build summary.`,
         );
       }
+      console.log();
     },
 
     transformIndexHtml(html) {
