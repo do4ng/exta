@@ -2,7 +2,14 @@ import React from 'react';
 
 type AnchorBaseProps = Omit<React.ComponentPropsWithoutRef<'a'>, 'href' | 'onClick'> & {
   href: string;
+
+  /**
+   * Download the data for that page in advance.
+   */
   prefetch?: boolean;
+  /**
+   * Load page data from the SSR stage.
+   */
   preload?: boolean;
   onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void | Promise<void>;
 };

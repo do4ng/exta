@@ -22,7 +22,9 @@ declare module '$exta-pages' {
 
 declare module '$exta-router' {
   import { PageManifest } from '$exta-manifest';
-  import { ExtaErrorComponent, ExtaLayout } from './src';
+
+  type ExtaLayout = (props: { children: React.ReactNode }) => React.ReactNode;
+  type ExtaErrorComponent = (props: ErrorProps) => React.ReactNode;
 
   interface RouteResult {
     regex: RegExp;
