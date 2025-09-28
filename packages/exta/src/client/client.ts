@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 
 import { router, usePathname } from '$exta-router';
 import { matchUrlToRoute } from '~/utils/params';
+import { hide, show } from './overlay';
 
 function prettyURL(path: string): string {
   if (path === '.') {
@@ -46,7 +47,21 @@ function App() {
   );
 }
 
-router.preloadAllPages();
+// router.preloadAllPages();
+
+let compilingInterval: any;
+
+if (import.meta.env.DEV) {
+  let intervalIndex = 0;
+  compilingInterval = setInterval(() => {
+    if (intervalIndex * 250 >= 250) {
+      const num = (intervalIndex % 3) + 1;
+      show(`compiling${'.'.repeat(num)}${' '.repeat(3 - num)}`);
+    }
+
+    intervalIndex += 1;
+  }, 250);
+}
 
 router.goto(window.location.href).then(() => {
   let root;
@@ -58,5 +73,8 @@ router.goto(window.location.href).then(() => {
   } else {
     root = ReactDOM.createRoot(document.getElementById('_app'));
     root.render(React.createElement(App, null));
+
+    clearInterval(compilingInterval);
+    hide();
   }
 });
