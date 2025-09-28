@@ -26,14 +26,22 @@ function App() {
   const props = router.data.get(prettyURL(url).toLowerCase());
   const page = router.findPage(url);
   const Layout = router.layout._page;
+  const rootElement = document.getElementById('_app');
 
+  // reset window
   window.scrollTo({ top: 0, behavior: 'instant' });
+  if (rootElement) rootElement.scrollTo({ top: 0, behavior: 'instant' });
 
+  // 404 page
   if (!page || props?.status === 404) {
     return React.createElement(
       Layout,
       null,
-      React.createElement(router.error._page, { key: location, ...(props || {}).props }),
+      React.createElement(router.error._page, {
+        key: location,
+        status: 404,
+        message: 'Page not found',
+      }),
     );
   }
 

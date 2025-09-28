@@ -1,5 +1,5 @@
 let overlayEl = null;
-function ensureOverlay() {
+function ensureOverlay(style: string = '') {
   if (!overlayEl) {
     overlayEl = document.createElement('div');
     overlayEl.className = '__exta_overlay';
@@ -7,7 +7,7 @@ function ensureOverlay() {
       min-width: 100px;
       position: fixed;
       bottom: 16px;
-      right: 16px;
+      left: 16px;
       z-index: 99999;
       font-family: Consolas, "Courier New", monospace;
       background: rgba(0,0,0,0.78);
@@ -19,10 +19,11 @@ function ensureOverlay() {
       line-height: 1.35;
       max-width: 320px;
       backdrop-filter: blur(4px);
-      transition: opacity 200ms ease, transform 200ms ease;
+      transition: opacity 500ms ease, transform 500ms ease;
       opacity: 0;
       transform: translateY(-6px) scale(0.98);
       display: none;
+      ${style}
     `;
     document.body.appendChild(overlayEl);
 
@@ -35,8 +36,8 @@ function ensureOverlay() {
   }
 }
 
-function show(text) {
-  ensureOverlay();
+function show(text: string, style?: string) {
+  ensureOverlay(style);
   if (text) overlayEl.textContent = text;
   overlayEl.style.display = 'block';
   requestAnimationFrame(() => {
@@ -45,7 +46,7 @@ function show(text) {
   });
 }
 
-function setText(text) {
+function setText(text: string) {
   ensureOverlay();
   overlayEl.textContent = text;
 }
