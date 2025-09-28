@@ -1,3 +1,4 @@
+import { ErrorProps } from '~/client/components/_error';
 import {
   PAGE_STATIC_DATA_FUNCTION,
   PAGE_STATIC_PARAMS_FUNCTION,
@@ -33,3 +34,4 @@ export type ExtaPage<PropsType = any, ParamsType = Record<string, string>> = (
 ) => React.ReactNode;
 
 export type ExtaLayout = (props: { children: React.ReactNode }) => React.ReactNode;
+export type ExtaErrorComponent = (props: ErrorProps) => React.ReactNode;

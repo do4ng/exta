@@ -14,7 +14,7 @@ import { matchUrlToRoute } from '~/utils/params';
 import { changeExtension } from '~/utils/path';
 import { convertToRegex } from '~/utils/urlPath';
 import { replaceParamsInRoute } from './shared';
-import { ExtaLayout, ExtaPage } from '../type';
+import { ExtaErrorComponent, ExtaLayout, ExtaPage } from '../type';
 
 const fileRegexp = /^[^/\\]+[\\/]/;
 
@@ -152,7 +152,7 @@ export async function createStaticHTML(
   };
 
   // load error component (/pages/_error or default layout)
-  const getError = async (): Promise<ExtaPage> => {
+  const getError = async (): Promise<ExtaErrorComponent> => {
     if (!pages['[error]']) return DefaultError;
     return (await vite.ssrLoadModule(pages['[error]'].client))._page;
   };

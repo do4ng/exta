@@ -22,6 +22,7 @@ declare module '$exta-pages' {
 
 declare module '$exta-router' {
   import { PageManifest } from '$exta-manifest';
+  import { ExtaErrorComponent, ExtaLayout } from './src';
 
   interface RouteResult {
     regex: RegExp;
@@ -59,12 +60,12 @@ declare module '$exta-router' {
     /**
      * Layout component
      */
-    layout: any;
+    layout: { _page: ExtaLayout };
 
     /**
      * Error component
      */
-    error: any;
+    error: { _page: ExtaErrorComponent };
 
     /**
      * Loaded page components
@@ -126,7 +127,7 @@ declare module '$exta-router' {
 
 interface Window {
   __overlay__: {
-    show(text: string): void;
+    show(text: string, style?: string): void;
     hide(): void;
     setText(text: string): void;
   };
