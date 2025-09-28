@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import 'colors';
 
 export enum COMPILER_LOG_LEVEL_TYPE {
@@ -8,7 +7,7 @@ export enum COMPILER_LOG_LEVEL_TYPE {
   DEBUG = 3,
 }
 
-if (process.argv.includes('--exta-debug')) {
+if (process.env.EXTA_DEBUG) {
   (global as any).COMPILER_LOG_LEVEL = 'debug';
 }
 
