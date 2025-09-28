@@ -23,6 +23,7 @@ import { findPage as findPageDev } from '~/utils/find';
 import { extaBuild } from './build';
 import { ServerModule } from './type';
 import { changeExtension } from '~/utils/path';
+import { debug } from '~/logger';
 
 const manifestModuleId = '$exta-manifest';
 const resolvedManifestModuleId = '\0' + manifestModuleId;
@@ -214,6 +215,12 @@ export function exta(options?: BaseConfig): Plugin[] {
             const url = new URL(req.url, 'http://localhost'); // request url
             const page = url.searchParams.get('page') || '/';
 
+            debug(`Requested "${page}"`);
+
+            if (page === '$IS_CONNECTED$') {
+              return res.end(JSON.stringify({ connected: true }));
+            }
+
             const clientURL = new URL(page, 'http://localhost'); // page url
 
             const pageManifest = findPage(page);
@@ -280,6 +287,7 @@ export function exta(options?: BaseConfig): Plugin[] {
             }
             _server_props.set(prettyPathname, data);
             res.end(JSON.stringify({ props: data, status: 200 }));
+            debug(`Request ended "${page}"`);
           });
         }
       },

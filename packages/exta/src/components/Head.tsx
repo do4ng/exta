@@ -27,8 +27,6 @@ export function Head({ children }: { children: ReactElement | ReactElement[] }) 
       .querySelectorAll('[data-ssr-head]')
       .forEach((el) => el.parentNode?.removeChild(el));
 
-    console.log();
-
     const html = renderToStaticMarkup(children);
     const template = document.createElement('template');
     template.innerHTML = html;
