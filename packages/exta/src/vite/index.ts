@@ -243,51 +243,62 @@ export function exta(options?: BaseConfig): Plugin[] {
               );
             }
 
-            // load client page module
-            const moduleUrl = pathToFileURL(pageManifest.buildServerPath).href;
-            const serverModule: ServerModule = await import(
-              `${moduleUrl}?v=${Date.now()}`
-            );
+            try {
+              // load client page module
+              const moduleUrl = pathToFileURL(pageManifest.buildServerPath).href;
+              const serverModule: ServerModule = await import(
+                `${moduleUrl}?v=${Date.now()}`
+              );
 
-            // generate params with pathname
-            const params = matchUrlToRoute(clientURL.pathname, {
-              regex: pageManifest.regexp,
-              params: pageManifest.params,
-            });
+              // generate params with pathname
+              const params = matchUrlToRoute(clientURL.pathname, {
+                regex: pageManifest.regexp,
+                params: pageManifest.params,
+              });
 
-            let data = {};
+              let data = {};
 
-            // check is valid path (comparing params)
-            if (serverModule[PAGE_STATIC_PARAMS_FUNCTION]) {
-              const availableParams = await serverModule[PAGE_STATIC_PARAMS_FUNCTION]();
+              // check is valid path (comparing params)
+              if (serverModule[PAGE_STATIC_PARAMS_FUNCTION]) {
+                const availableParams = await serverModule[PAGE_STATIC_PARAMS_FUNCTION]();
 
-              let success = false;
+                let success = false;
 
-              for (const allowedParams of availableParams) {
-                if (isDeepStrictEqual(encodeJSON(allowedParams), params)) {
-                  success = true;
+                for (const allowedParams of availableParams) {
+                  if (isDeepStrictEqual(encodeJSON(allowedParams), params)) {
+                    success = true;
+                  }
+                }
+
+                if (!success) {
+                  return res.end(
+                    JSON.stringify({
+                      props: {},
+                      status: 404,
+                    }),
+                  );
                 }
               }
 
-              if (!success) {
-                return res.end(
-                  JSON.stringify({
-                    props: {},
-                    status: 404,
-                  }),
-                );
+              // execute getStaticProps
+              if (serverModule[PAGE_STATIC_DATA_FUNCTION]) {
+                data = await serverModule[PAGE_STATIC_DATA_FUNCTION]({
+                  params,
+                });
               }
+              _server_props.set(prettyPathname, data);
+              res.end(JSON.stringify({ props: data, status: 200 }));
+              debug(`Request ended "${page}"`);
+            } catch (e) {
+              console.error(e);
+              res.end(
+                JSON.stringify({
+                  message: 'Internal Server Error',
+                  detail: e.message,
+                  status: 500,
+                }),
+              );
             }
-
-            // execute getStaticProps
-            if (serverModule[PAGE_STATIC_DATA_FUNCTION]) {
-              data = await serverModule[PAGE_STATIC_DATA_FUNCTION]({
-                params,
-              });
-            }
-            _server_props.set(prettyPathname, data);
-            res.end(JSON.stringify({ props: data, status: 200 }));
-            debug(`Request ended "${page}"`);
           });
         }
       },

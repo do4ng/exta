@@ -32,17 +32,30 @@ function App() {
   window.scrollTo({ top: 0, behavior: 'instant' });
   if (rootElement) rootElement.scrollTo({ top: 0, behavior: 'instant' });
 
-  // 404 page
-  if (!page || props?.status === 404) {
-    return React.createElement(
+  const createError = (props: any) =>
+    React.createElement(
       Layout,
       null,
       React.createElement(router.error._page, {
         key: location,
-        status: 404,
-        message: 'Page not found',
+        ...props,
       }),
     );
+
+  // 404 page
+  if (!page || props?.status === 404) {
+    return createError({
+      key: location,
+      status: 404,
+      message: 'Page not found',
+    });
+  } else if (props?.status === 500) {
+    show(`ERROR: ${props.detail}`);
+    return createError({
+      key: location,
+      status: 500,
+      message: 'Internal Server Error',
+    });
   }
 
   const Page = router.modules[page.path]._page;
