@@ -163,10 +163,6 @@ export function useParams() {
 
   if (!page) {
     const message = `[exta-router] Cannot generate params: Route match for "${location}" is missing required data.`;
-    window.__overlay__.show(
-      `ERROR: ${message}\nSee the console for more details.`,
-      'color: #ff3c3c',
-    );
     throw new Error(message);
   }
 

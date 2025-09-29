@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 
 import { router, usePathname } from '$exta-router';
 import { matchUrlToRoute } from '~/utils/params';
 import { hide, show } from './overlay';
+import ErrorBoundary, { ErrorBoundaryProps } from './components/error';
 
 function prettyURL(path: string): string {
   if (path === '.') {
@@ -21,17 +22,19 @@ function prettyURL(path: string): string {
 
 function App() {
   const location = usePathname();
-
   const url = decodeURIComponent(new URL(location, window.location.origin).pathname);
   const props = router.data.get(prettyURL(url).toLowerCase());
   const page = router.findPage(url);
   const Layout = router.layout._page;
   const rootElement = document.getElementById('_app');
 
-  // reset window
-  window.scrollTo({ top: 0, behavior: 'instant' });
-  if (rootElement) rootElement.scrollTo({ top: 0, behavior: 'instant' });
+  // Reset Window on page moving
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    if (rootElement) rootElement.scrollTo({ top: 0, behavior: 'instant' });
+  }, [location]);
 
+  // Error Component
   const createError = (props: any) =>
     React.createElement(
       Layout,
@@ -42,15 +45,18 @@ function App() {
       }),
     );
 
-  // 404 page
   if (!page || props?.status === 404) {
+    // 404 page
+
     return createError({
       key: location,
       status: 404,
       message: 'Page not found',
     });
   } else if (props?.status === 500) {
-    show(`ERROR: ${props.detail}`);
+    // 500 page
+
+    show(`ERROR: ${props.detail}`, true);
     return createError({
       key: location,
       status: 500,
@@ -86,15 +92,32 @@ if (import.meta.env.DEV) {
 }
 
 router.goto(window.location.href).then(() => {
-  let root;
+  const mainComponent = React.createElement(
+    // Error Catcher
+    ErrorBoundary,
+    {
+      errorComponent: router.error._page,
+      onError(error) {
+        console.error(error);
+        if (import.meta.env.PROD) {
+          show(`An internal client error occurred. See the console for details.`, true);
+        } else {
+          show(`ERROR: ${error.message}`, true);
+        }
+      },
+    } as ErrorBoundaryProps,
+    React.createElement(App, null),
+  );
   if (import.meta.env.PROD) {
-    root = ReactDOM.hydrateRoot(
-      document.getElementById('_app'),
-      React.createElement(App, null),
-    );
+    // on Production Mode
+    // SSR hydration
+
+    ReactDOM.hydrateRoot(document.getElementById('_app'), mainComponent);
   } else {
-    root = ReactDOM.createRoot(document.getElementById('_app'));
-    root.render(React.createElement(App, null));
+    // on Development Mode
+    // just rendering
+    const root = ReactDOM.createRoot(document.getElementById('_app'));
+    root.render(mainComponent);
 
     // clear overlay
     clearInterval(compilingInterval);

@@ -19,7 +19,7 @@ function ensureOverlay(style: string = '') {
       line-height: 1.35;
       max-width: 320px;
       backdrop-filter: blur(4px);
-      transition: opacity 500ms ease, transform 500ms ease;
+      transition: opacity 400ms ease, transform 400ms ease;
       opacity: 0;
       transform: translateY(-6px) scale(0.98);
       display: none;
@@ -27,7 +27,6 @@ function ensureOverlay(style: string = '') {
     `;
     document.body.appendChild(overlayEl);
 
-    // transition 끝났을 때 opacity=0이면 display none 처리
     overlayEl.addEventListener('transitionend', () => {
       if (overlayEl.style.opacity === '0') {
         overlayEl.style.display = 'none';
@@ -36,8 +35,10 @@ function ensureOverlay(style: string = '') {
   }
 }
 
-function show(text: string, style?: string) {
-  ensureOverlay(style);
+function show(text: string, error?: boolean) {
+  ensureOverlay(error === true ? 'color: #ff3c3c' : '');
+  if (error === true && import.meta.env.PROD)
+    text = 'An internal client error occurred. See the console for details.';
   if (text) overlayEl.textContent = text;
   overlayEl.style.display = 'block';
   requestAnimationFrame(() => {

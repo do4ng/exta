@@ -5,12 +5,13 @@ const containerStyle: React.CSSProperties = {
   justifyContent: 'center',
   alignItems: 'center',
   width: '100%',
-  minHeight: '100px',
+  height: '100vh',
   textAlign: 'center',
+  flexDirection: 'column',
 };
 
 export interface ErrorProps {
-  status?: number;
+  status?: number | string;
   message?: string;
 }
 
@@ -20,6 +21,9 @@ const defaultProps: ErrorProps = {
 };
 
 export const DefaultError = ({ status, message }: ErrorProps = defaultProps) => {
+  status = status ?? defaultProps.status;
+  message = message ?? defaultProps.message;
+
   return React.createElement('div', { style: containerStyle }, [
     React.createElement('h1', { key: 'status' }, String(status)),
     React.createElement('p', { key: 'message' }, message),

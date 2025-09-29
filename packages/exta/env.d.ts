@@ -129,7 +129,7 @@ declare module '$exta-router' {
 
 interface Window {
   __overlay__: {
-    show(text: string, style?: string): void;
+    show(text: string, error?: boolean): void;
     hide(): void;
     setText(text: string): void;
   };
