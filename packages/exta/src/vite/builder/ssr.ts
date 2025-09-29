@@ -17,6 +17,7 @@ import { convertToRegex } from '~/utils/urlPath';
 import { replaceParamsInRoute } from './shared';
 import { ExtaErrorComponent, ExtaLayout, ExtaPage } from '../type';
 import { Spinner } from '~/utils/spinner';
+import { getUniqueArray } from '~/utils/array';
 
 const fileRegexp = /^[^/\\]+[\\/]/;
 
@@ -63,6 +64,35 @@ export function collectCssFiles(manifest: Manifest, entry: string): string[] {
 
   recurse(entry);
   return result;
+}
+
+// collect vite js dependencies
+export function collectJavaScriptFiles(manifest: Manifest, entry: string): string[] {
+  const result = new Set<string>();
+  const visited = new Set<string>();
+
+  function recurse(key: string) {
+    if (visited.has(key)) {
+      return;
+    }
+    visited.add(key);
+
+    const chunk = manifest[key];
+    if (!chunk) {
+      return;
+    }
+
+    if (chunk.imports) {
+      for (const importedKey of chunk.imports) {
+        recurse(importedKey);
+      }
+    }
+
+    result.add(chunk.file);
+  }
+
+  recurse(entry);
+  return [...result];
 }
 
 // render page on server side
@@ -191,7 +221,7 @@ export async function createStaticHTML(
       '/',
     );
     const cssFiles = collectCssFiles(manifest, compiledFile);
-    const script = manifest[compiledFile].file;
+    const script = collectJavaScriptFiles(manifest, compiledFile);
 
     if (data[PAGE_STATIC_PARAMS_FUNCTION]) {
       const paramsModule = await data[PAGE_STATIC_PARAMS_FUNCTION]();
@@ -225,10 +255,10 @@ export async function createStaticHTML(
             params: matchUrlToRoute(route, convertToRegex(pageName)),
           },
           template,
-          cssFiles: [...cssFiles, ...layoutCss],
+          cssFiles: getUniqueArray([...cssFiles, ...layoutCss]),
           staticManifest,
           path: route,
-          scripts: [layoutScript, script],
+          scripts: getUniqueArray([layoutScript, ...script]),
         };
 
         mkdirSync(dirname(outStaticPage), { recursive: true });
@@ -259,10 +289,10 @@ export async function createStaticHTML(
           params: {},
         },
         template,
-        cssFiles: [...cssFiles, ...layoutCss],
+        cssFiles: getUniqueArray([...cssFiles, ...layoutCss]),
         staticManifest,
         path: route,
-        scripts: [layoutScript, script],
+        scripts: getUniqueArray([layoutScript, ...script]),
       };
 
       mkdirSync(dirname(outStaticPage), { recursive: true });
