@@ -44,18 +44,41 @@ export function Link({ href, onClick, prefetch, preload, ...props }: AnchorBaseP
     extaRouter.prefetch(url);
   }
 
-  const handleClick = async (e) => {
-    e.preventDefault();
+  const handleClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (e.defaultPrevented) return;
 
-    // user onClick
-    if (onClick) await onClick(e);
-
-    if (isExternal(href)) {
-      return (window.location.href = href);
+    // modifier / new tab
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || props.target === '_blank') {
+      return;
     }
 
-    await extaRouter.goto(href);
-    router.push(href);
+    const current = window.location;
+    const target = new URL(href, current.href);
+
+    const isHashOnly = href.startsWith('#');
+    const isSamePath = target.pathname === current.pathname;
+    const isHashChange = target.hash && target.hash !== current.hash;
+
+    // hash change
+    if (isHashOnly || (isSamePath && isHashChange)) {
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (onClick) {
+      await onClick(e);
+      if (e.defaultPrevented) return;
+    }
+
+    if (isExternal(href)) {
+      window.location.href = href;
+      return;
+    }
+
+    await extaRouter.goto(target.pathname);
+    router.push(target.pathname);
   };
 
   return (
