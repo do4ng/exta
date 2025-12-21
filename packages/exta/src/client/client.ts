@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 
-import { router, usePathname } from '$exta-router';
+import { router, usePathname, useSearchQuery } from '$exta-router';
 import { matchUrlToRoute } from '~/utils/params';
 import { hide, show } from './overlay';
 import ErrorBoundary, { ErrorBoundaryProps } from './components/error';
@@ -21,7 +21,9 @@ function prettyURL(path: string): string {
 }
 
 function App() {
+  const isFirstRender = useRef(true);
   const location = usePathname();
+  const search = useSearchQuery();
   const url = decodeURIComponent(new URL(location, window.location.origin).pathname);
   const props = router.data.get(prettyURL(url).toLowerCase());
   const page = router.findPage(url);
@@ -30,9 +32,13 @@ function App() {
 
   // Reset Window on page moving
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     window.scrollTo({ top: 0, behavior: 'instant' });
     if (rootElement) rootElement.scrollTo({ top: 0, behavior: 'instant' });
-  }, [location]);
+  }, [location, search]);
 
   // Error Component
   const createError = (props: any) =>

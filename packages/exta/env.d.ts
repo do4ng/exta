@@ -51,6 +51,8 @@ declare module '$exta-router' {
    */
   export function usePathname(): string;
 
+  export function useHash(): string;
+
   /**
    * Return `url.searchQuery`.
    */

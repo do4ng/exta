@@ -118,30 +118,38 @@ function createHistoryStore() {
 
 const historyStore = createHistoryStore();
 
-export function useLocation() {
-  if (isServerSide) return global.__EXTA_SSR_DATA__.pathname || '/.exta/ssr:unknown';
+function useLocationSelector<T>(selector: (url: string) => T) {
+  if (isServerSide) {
+    return selector(global.__EXTA_SSR_DATA__.pathname || '/.exta/ssr:unknown');
+  }
 
   return React.useSyncExternalStore(
     historyStore.subscribe,
-    historyStore.getSnapshot,
-    () => {
-      return typeof window === 'undefined'
-        ? global?.__EXTA_SSR_DATA__?.pathname
-        : historyStore.getSnapshot();
-    },
+    () => selector(historyStore.getSnapshot()),
+    () => selector(global?.__EXTA_SSR_DATA__?.pathname || '/.exta/ssr:unknown'),
   );
 }
 
-function useURL() {
-  return new URL(useLocation(), 'http://localhost/');
+export function useLocation() {
+  return useLocationSelector((url) => url);
+}
+
+export function useURL() {
+  const url = useLocation();
+  return React.useMemo(() => new URL(url, 'http://localhost'), [url]);
 }
 
 export function usePathname() {
-  return useURL().pathname;
+  return useLocationSelector((url) => new URL(url, 'http://localhost').pathname);
 }
 
 export function useSearchQuery() {
-  return useURL().searchParams;
+  const search = useLocationSelector((url) => new URL(url, 'http://localhost').search);
+
+  return React.useMemo(() => new URLSearchParams(search), [search]);
+}
+export function useHash() {
+  return useLocationSelector((url) => new URL(url, 'http://localhost').hash);
 }
 
 export function useRouter() {

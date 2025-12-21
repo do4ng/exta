@@ -40,8 +40,8 @@ export function Link({ href, onClick, prefetch, preload, ...props }: AnchorBaseP
   const router = useRouter();
 
   if (!isExternal(href) && prefetch !== false) {
-    const url = new URL(href, window.location.origin).pathname;
-    extaRouter.prefetch(url);
+    const url = new URL(href, window.location.origin);
+    extaRouter.prefetch(url.pathname);
   }
 
   const handleClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -64,9 +64,6 @@ export function Link({ href, onClick, prefetch, preload, ...props }: AnchorBaseP
       return;
     }
 
-    e.preventDefault();
-    e.stopPropagation();
-
     if (onClick) {
       await onClick(e);
       if (e.defaultPrevented) return;
@@ -77,8 +74,11 @@ export function Link({ href, onClick, prefetch, preload, ...props }: AnchorBaseP
       return;
     }
 
+    e.preventDefault();
+    e.stopPropagation();
+
     await extaRouter.goto(target.pathname);
-    router.push(target.pathname);
+    router.push(target.pathname + target.search + target.hash);
   };
 
   return (
