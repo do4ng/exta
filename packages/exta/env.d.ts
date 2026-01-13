@@ -31,6 +31,25 @@ declare module '$exta-router' {
     params: string[];
   }
 
+  interface LoaderEventMap {
+    'load:start': void;
+    'load:end': void;
+  }
+
+  declare class LoaderHook extends EventTarget {
+    addEventListener<K extends keyof LoaderEventMap>(
+      type: K,
+      listener: (ev: CustomEvent<void>) => void,
+      options?: boolean | AddEventListenerOptions,
+    ): void;
+
+    removeEventListener<K extends keyof LoaderEventMap>(
+      type: K,
+      listener: (ev: CustomEvent<void>) => void,
+      options?: boolean | EventListenerOptions,
+    ): void;
+  }
+
   /**
    * Return `url.location`.
    */
@@ -80,6 +99,8 @@ declare module '$exta-router' {
      * Loaded page data (`.json`).
      */
     data: Map<string, any>;
+
+    hook: LoaderHook;
 
     constructor(routes: PageManifest[]);
 

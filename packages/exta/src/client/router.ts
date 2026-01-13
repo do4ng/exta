@@ -118,15 +118,24 @@ function createHistoryStore() {
 
 const historyStore = createHistoryStore();
 
+const getSSRPathname = () => {
+  if (typeof global !== 'undefined') {
+    return global.__EXTA_SSR_DATA__?.pathname ?? undefined;
+  }
+  return decodeURIComponent(
+    window.location.pathname + window.location.search + window.location.hash,
+  );
+};
+
 function useLocationSelector<T>(selector: (url: string) => T) {
   if (isServerSide) {
-    return selector(global.__EXTA_SSR_DATA__.pathname || '/.exta/ssr:unknown');
+    return selector(getSSRPathname() ?? '/.exta/ssr:unknown:serverside');
   }
 
   return React.useSyncExternalStore(
     historyStore.subscribe,
     () => selector(historyStore.getSnapshot()),
-    () => selector(global?.__EXTA_SSR_DATA__?.pathname || '/.exta/ssr:unknown'),
+    () => selector(getSSRPathname() ?? '/.exta/ssr:unknown:ssr'),
   );
 }
 
@@ -192,7 +201,10 @@ export class Router {
 
   loadedModules: Map<string, any> = new Map();
 
+  hook: EventTarget;
+
   constructor(routes: PageManifest[]) {
+    this.hook = new EventTarget();
     this.routes = routes;
   }
 
@@ -271,6 +283,8 @@ export class Router {
   }
 
   async goto(href: string) {
+    this.hook.dispatchEvent(new Event('load:start'));
+
     const url = decodeURIComponent(
       new URL(href, window.location.origin).pathname,
     ).toLowerCase();
@@ -279,7 +293,10 @@ export class Router {
     await this.loadLayout();
     await this.loadError();
 
-    if (!page) return;
+    if (!page) {
+      this.hook.dispatchEvent(new Event('load:end'));
+      return;
+    }
 
     const pageModule = this.loadedModules.has(page.path)
       ? this.loadedModules.get(page.path)
@@ -291,6 +308,7 @@ export class Router {
       : this.data.set(_url, await loadPageData(url)).get(_url);
 
     this.modules[page.path] = pageModule;
+    this.hook.dispatchEvent(new Event('load:end'));
 
     if (data?.status === 404) {
       return;

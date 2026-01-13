@@ -70,6 +70,10 @@ function App() {
     });
   }
 
+  if (!router.modules[page.path]?._page) {
+    console.error(`Cannot find page module (path: ${page.path})`);
+  }
+
   const Page = router.modules[page.path]._page;
   const params = matchUrlToRoute(url, { params: page.params, regex: page.regexp });
 
